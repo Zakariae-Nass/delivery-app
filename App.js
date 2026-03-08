@@ -2,14 +2,15 @@ import React from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
 import { NavigationContainer } from '@react-navigation/native';
 import StackNavigator from './src/navigation/StackNavigator';
-// export default function App() {
-//   return <AppNavigator />;
-// }
+import  GeocodingTest from './src/screens/GeocodingTest'
 
 export default function App() {
+  // return (
+  // //   <NavigationContainer>
+  // //     <StackNavigator />
+  // //   </NavigationContainer>
+  // // );
   return (
-    <NavigationContainer>
-      <StackNavigator />
-    </NavigationContainer>
+    <GeocodingTest />
   );
 }
