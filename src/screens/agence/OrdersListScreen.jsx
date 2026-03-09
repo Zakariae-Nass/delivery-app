@@ -68,7 +68,14 @@ function OrderCard({ order, navigation }) {
   const driver        = order.assignedDriver;
 
   return (
-    <View style={styles.orderCard}>
+    <View style={[styles.orderCard, order.isUrgent && styles.orderCardUrgent]}>
+      {/* URGENT BADGE */}
+      {order.isUrgent && (
+        <View style={styles.urgentBadge}>
+          <Text style={styles.urgentBadgeText}>🔴 URGENT</Text>
+        </View>
+      )}
+
       {/* TOP ROW */}
       <View style={styles.cardTopRow}>
         <Text style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
@@ -306,7 +313,25 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
+    overflow: 'hidden',
   },
+  orderCardUrgent: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#E63946',
+  },
+  urgentBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#FFF0F0',
+    borderColor: '#E63946',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    zIndex: 1,
+  },
+  urgentBadgeText: { color: '#E63946', fontSize: 11, fontWeight: '700' },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

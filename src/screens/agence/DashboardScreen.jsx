@@ -9,37 +9,45 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Colors, Spacing, Radius, FontSize } from '../../config/theme';
-import { MOCK_COMMANDES_AGENCE, MOCK_STATS_AGENCE } from '../../config/mockData';
+import { MOCK_STATS_AGENCE } from '../../config/mockData';
+import { useApp } from '../../context/AppContext';
 
+// Status config aligned with CreateOrderScreen statut values
 const STATUS_CONFIG = {
-  en_attente: { label: 'En attente', color: Colors.warning, bg: Colors.warningGhost, icon: '⏳' },
-  acceptee:   { label: 'Acceptée',   color: Colors.info,    bg: 'rgba(59,130,246,0.12)', icon: '✅' },
-  en_route:   { label: 'En route',   color: Colors.primary, bg: Colors.primaryGhost,   icon: '🚴' },
-  livree:     { label: 'Livrée',     color: Colors.success, bg: Colors.successGhost,   icon: '✅' },
-  annulee:    { label: 'Annulée',    color: Colors.error,   bg: Colors.errorGhost,     icon: '❌' },
+  // New (from CreateOrderScreen)
+  'En attente': { label: 'En attente', color: '#FF9F1C', bg: '#FFF8EE', icon: '⏳' },
+  'Assigné':    { label: 'Assigné',    color: '#4361EE', bg: '#EEF1FF', icon: '✅' },
+  'En cours':   { label: 'En cours',   color: '#4361EE', bg: '#EEF1FF', icon: '🚴' },
+  'Livré':      { label: 'Livré',      color: '#2DC653', bg: '#EAFAF1', icon: '✅' },
+  'Annulée':    { label: 'Annulée',    color: '#E63946', bg: '#FFF0F0', icon: '❌' },
+  // Legacy mock data keys
+  en_attente: { label: 'En attente', color: '#FF9F1C', bg: '#FFF8EE',             icon: '⏳' },
+  acceptee:   { label: 'Acceptée',   color: '#4361EE', bg: '#EEF1FF',             icon: '✅' },
+  en_route:   { label: 'En route',   color: Colors.primary, bg: Colors.primaryGhost, icon: '🚴' },
+  livree:     { label: 'Livrée',     color: '#2DC653', bg: '#EAFAF1',             icon: '✅' },
+  annulee:    { label: 'Annulée',    color: '#E63946', bg: '#FFF0F0',             icon: '❌' },
 };
 
 const VEHICLE_ICONS = {
-  moto: '🛵',
-  voiture: '🚗',
-  camionnette: '🚐',
+  moto: '🛵', voiture: '🚗', camionnette: '🚐', camion: '🚛',
 };
 
 const FILTERS = [
-  { key: 'toutes', label: 'Toutes' },
+  { key: 'toutes',     label: 'Toutes' },
   { key: 'en_attente', label: 'En attente' },
-  { key: 'en_cours', label: 'En cours' },
-  { key: 'livrees', label: 'Livrées' },
+  { key: 'en_cours',   label: 'En cours' },
+  { key: 'livrees',    label: 'Livrées' },
 ];
 
 export default function AgenceDashboardScreen({ navigation }) {
+  const { orders } = useApp();
   const [activeFilter, setActiveFilter] = useState('toutes');
 
-  const filteredCommandes = MOCK_COMMANDES_AGENCE.filter((c) => {
-    if (activeFilter === 'toutes') return true;
-    if (activeFilter === 'en_cours') return ['acceptee', 'en_route', 'pickup'].includes(c.statut);
-    if (activeFilter === 'en_attente') return c.statut === 'en_attente';
-    if (activeFilter === 'livrees') return c.statut === 'livree';
+  const filteredOrders = orders.filter((c) => {
+    if (activeFilter === 'toutes')     return true;
+    if (activeFilter === 'en_cours')   return ['acceptee', 'en_route', 'pickup', 'Assigné', 'En cours'].includes(c.statut);
+    if (activeFilter === 'en_attente') return c.statut === 'en_attente' || c.statut === 'En attente';
+    if (activeFilter === 'livrees')    return c.statut === 'livree'     || c.statut === 'Livré';
     return true;
   });
 
@@ -77,23 +85,32 @@ export default function AgenceDashboardScreen({ navigation }) {
           style={styles.statsScroll}
           contentContainerStyle={styles.statsContent}
         >
-          <StatCard icon="📦" label="Total" value={MOCK_STATS_AGENCE.totalCommandes} color={Colors.info} />
-          <StatCard icon="🚴" label="En cours" value={MOCK_STATS_AGENCE.enCours} color={Colors.primary} />
-          <StatCard icon="⏳" label="En attente" value={MOCK_STATS_AGENCE.enAttente} color={Colors.warning} />
-          <StatCard icon="✅" label="Livrées" value={MOCK_STATS_AGENCE.livrees} color={Colors.success} />
-          <StatCard icon="💰" label="Ce mois (MAD)" value={MOCK_STATS_AGENCE.gainsMois} color={Colors.success} />
+          <StatCard icon="📦" label="Total"          value={MOCK_STATS_AGENCE.totalCommandes} color={Colors.info} />
+          <StatCard icon="🚴" label="En cours"       value={MOCK_STATS_AGENCE.enCours}        color={Colors.primary} />
+          <StatCard icon="⏳" label="En attente"     value={MOCK_STATS_AGENCE.enAttente}      color="#FF9F1C" />
+          <StatCard icon="✅" label="Livrées"        value={MOCK_STATS_AGENCE.livrees}        color="#2DC653" />
+          <StatCard icon="💰" label="Ce mois (MAD)"  value={MOCK_STATS_AGENCE.gainsMois}      color="#2DC653" />
         </ScrollView>
 
         {/* ── Bouton Nouvelle Commande ── */}
-        <TouchableOpacity style={styles.newCommandeBtn} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.newCommandeBtn}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('CreateOrder')}
+        >
           <Text style={styles.newCommandeIcon}>+</Text>
           <Text style={styles.newCommandeText}>Nouvelle commande</Text>
         </TouchableOpacity>
 
         {/* ── Section Commandes ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Mes commandes</Text>
-          <Text style={styles.sectionCount}>{filteredCommandes.length}</Text>
+          <View style={styles.sectionLeft}>
+            <Text style={styles.sectionTitle}>Mes commandes</Text>
+            <Text style={styles.sectionCount}>{filteredOrders.length}</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('OrdersList')}>
+            <Text style={styles.voirTout}>Voir toutes →</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Filtres */}
@@ -118,16 +135,30 @@ export default function AgenceDashboardScreen({ navigation }) {
 
         {/* Liste commandes */}
         <View style={styles.commandesList}>
-          {filteredCommandes.map((commande) => (
-            <CommandeCard key={commande.id} commande={commande} />
-          ))}
+          {filteredOrders.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📭</Text>
+              <Text style={styles.emptyText}>Aucune commande pour l'instant</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('CreateOrder')}>
+                <Text style={styles.emptyLink}>Créer une commande →</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onPress={() => navigation.navigate('OrdersList')}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ── Composant StatCard ──
+// ── StatCard ──────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, color }) {
   return (
     <View style={[statStyles.card, { borderTopColor: color }]}>
@@ -138,55 +169,56 @@ function StatCard({ icon, label, value, color }) {
   );
 }
 
-// ── Composant CommandeCard ──
-function CommandeCard({ commande }) {
-  const status = STATUS_CONFIG[commande.statut] || STATUS_CONFIG.en_attente;
+// ── OrderCard ─────────────────────────────────────────────────────────────────
+function OrderCard({ order, onPress }) {
+  const status = STATUS_CONFIG[order.statut] || STATUS_CONFIG['En attente'];
+
+  // Support both legacy mock fields and new CreateOrderScreen fields
+  const pickup = order.pickupAdresse   || order.departTexte      || '—';
+  const depot  = order.depotAdresse    || order.destinationTexte || '—';
+  const vtype  = order.vehiculeType    || order.vehicleType      || '';
+  const desc   = order.description     || order.packageType      || '';
+  const prix   = order.prix !== undefined ? `${order.prix} MAD` : '—';
 
   return (
-    <TouchableOpacity style={commandeStyles.card} activeOpacity={0.8}>
-      {/* Header de la card */}
-      <View style={commandeStyles.header}>
-        <View style={commandeStyles.idRow}>
-          <Text style={commandeStyles.vehicleIcon}>
-            {VEHICLE_ICONS[commande.vehiculeType] || '📦'}
-          </Text>
-          <Text style={commandeStyles.id}>#CMD-{commande.id.padStart(4, '0')}</Text>
+    <TouchableOpacity style={[cardStyles.card, order.isUrgent && cardStyles.cardUrgent]} activeOpacity={0.8} onPress={onPress}>
+      {/* Urgent badge */}
+      {order.isUrgent && (
+        <View style={cardStyles.urgentBadge}>
+          <Text style={cardStyles.urgentBadgeText}>🔴 URGENT</Text>
         </View>
-        <View style={[commandeStyles.statusBadge, { backgroundColor: status.bg }]}>
-          <Text style={[commandeStyles.statusText, { color: status.color }]}>
+      )}
+
+      {/* Header */}
+      <View style={cardStyles.header}>
+        <View style={cardStyles.idRow}>
+          <Text style={cardStyles.vehicleIcon}>{VEHICLE_ICONS[vtype] || '📦'}</Text>
+          <Text style={cardStyles.id}>#{order.id.slice(0, 8)}</Text>
+        </View>
+        <View style={[cardStyles.statusBadge, { backgroundColor: status.bg }]}>
+          <Text style={[cardStyles.statusText, { color: status.color }]}>
             {status.icon} {status.label}
           </Text>
         </View>
       </View>
 
       {/* Adresses */}
-      <View style={commandeStyles.addressSection}>
-        <View style={commandeStyles.addressRow}>
-          <View style={[commandeStyles.dot, { backgroundColor: Colors.primary }]} />
-          <Text style={commandeStyles.addressText} numberOfLines={1}>
-            {commande.pickupAdresse}
-          </Text>
+      <View style={cardStyles.addressSection}>
+        <View style={cardStyles.addressRow}>
+          <View style={[cardStyles.dot, { backgroundColor: '#4361EE' }]} />
+          <Text style={cardStyles.addressText} numberOfLines={1}>{pickup}</Text>
         </View>
-        <View style={commandeStyles.addressLine} />
-        <View style={commandeStyles.addressRow}>
-          <View style={[commandeStyles.dot, { backgroundColor: Colors.success }]} />
-          <Text style={commandeStyles.addressText} numberOfLines={1}>
-            {commande.depotAdresse}
-          </Text>
+        <View style={cardStyles.addressLine} />
+        <View style={cardStyles.addressRow}>
+          <View style={[cardStyles.dot, { backgroundColor: '#2DC653' }]} />
+          <Text style={cardStyles.addressText} numberOfLines={1}>{depot}</Text>
         </View>
       </View>
 
       {/* Footer */}
-      <View style={commandeStyles.footer}>
-        <Text style={commandeStyles.description} numberOfLines={1}>
-          📦 {commande.description}
-        </Text>
-        <View style={commandeStyles.footerRight}>
-          {commande.livreur && (
-            <Text style={commandeStyles.livreur}>🛵 {commande.livreur}</Text>
-          )}
-          <Text style={commandeStyles.prix}>{commande.prix} MAD</Text>
-        </View>
+      <View style={cardStyles.footer}>
+        <Text style={cardStyles.description} numberOfLines={1}>📦 {desc}</Text>
+        <Text style={cardStyles.prix}>{prix}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -196,8 +228,8 @@ function CommandeCard({ commande }) {
 // STYLES
 // ─────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.bgDark },
-  container: { flex: 1, backgroundColor: Colors.bgDark },
+  safeArea:      { flex: 1, backgroundColor: Colors.bgDark },
+  container:     { flex: 1, backgroundColor: Colors.bgDark },
   scrollContent: { paddingBottom: 32 },
 
   topBar: {
@@ -208,33 +240,25 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
   },
-  greeting: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  agenceName: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.textPrimary },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  notifBtn: { position: 'relative', padding: Spacing.xs },
-  notifIcon: { fontSize: 22 },
+  greeting:    { fontSize: FontSize.sm,  color: Colors.textSecondary },
+  agenceName:  { fontSize: FontSize.xl,  fontWeight: '800', color: Colors.textPrimary },
+  topBarRight: { flexDirection: 'row',   alignItems: 'center', gap: 10 },
+  notifBtn:    { position: 'relative',   padding: Spacing.xs },
+  notifIcon:   { fontSize: 22 },
   notifBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    position: 'absolute', top: 6, right: 6,
+    width: 8, height: 8, borderRadius: 4,
     backgroundColor: Colors.error,
   },
   avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.full,
+    width: 40, height: 40, borderRadius: Radius.full,
     backgroundColor: Colors.primaryGhost,
-    borderWidth: 1.5,
-    borderColor: Colors.borderActive,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderWidth: 1.5, borderColor: Colors.borderActive,
+    justifyContent: 'center', alignItems: 'center',
   },
   avatarText: { color: Colors.primary, fontWeight: '700', fontSize: FontSize.sm },
 
-  statsScroll: { marginBottom: Spacing.md },
+  statsScroll:  { marginBottom: Spacing.md },
   statsContent: { paddingHorizontal: Spacing.lg, gap: 10 },
 
   newCommandeBtn: {
@@ -259,10 +283,11 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    gap: 8,
   },
+  sectionLeft:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
   sectionCount: {
     backgroundColor: Colors.bgElevated,
@@ -275,9 +300,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  voirTout: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
 
-  filtersScroll: { marginBottom: Spacing.md },
-  filtersContent: { paddingHorizontal: Spacing.lg, gap: 8 },
+  filtersScroll:   { marginBottom: Spacing.md },
+  filtersContent:  { paddingHorizontal: Spacing.lg, gap: 8 },
   filterChip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
@@ -286,14 +312,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  filterChipActive: {
-    backgroundColor: Colors.primaryGhost,
-    borderColor: Colors.borderActive,
-  },
-  filterText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '600' },
-  filterTextActive: { color: Colors.primary },
+  filterChipActive:  { backgroundColor: Colors.primaryGhost, borderColor: Colors.borderActive },
+  filterText:        { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '600' },
+  filterTextActive:  { color: Colors.primary },
 
   commandesList: { paddingHorizontal: Spacing.lg, gap: 12 },
+
+  emptyState: { alignItems: 'center', paddingVertical: 32 },
+  emptyIcon:  { fontSize: 48, marginBottom: 12 },
+  emptyText:  { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: 10 },
+  emptyLink:  { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
 });
 
 const statStyles = StyleSheet.create({
@@ -307,71 +335,62 @@ const statStyles = StyleSheet.create({
     borderTopWidth: 3,
     alignItems: 'center',
   },
-  icon: { fontSize: 22, marginBottom: Spacing.xs },
+  icon:  { fontSize: 22, marginBottom: Spacing.xs },
   value: { fontSize: FontSize.xl, fontWeight: '800', marginBottom: 2 },
   label: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
 });
 
-const commandeStyles = StyleSheet.create({
+const cardStyles = StyleSheet.create({
+  // White card matching OrdersListScreen style
   card: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+    overflow: 'hidden',
+    position: 'relative',
   },
+  cardUrgent: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#E63946',
+  },
+  urgentBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#FFF0F0',
+    borderColor: '#E63946',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    zIndex: 1,
+  },
+  urgentBadgeText: { color: '#E63946', fontSize: 11, fontWeight: '700' },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: 10,
   },
-  idRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  idRow:       { flexDirection: 'row', alignItems: 'center', gap: 6 },
   vehicleIcon: { fontSize: 18 },
-  id: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textSecondary },
-  statusBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-  },
-  statusText: { fontSize: FontSize.xs, fontWeight: '700' },
+  id:          { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+  statusText:  { fontSize: 11, fontWeight: '700' },
 
-  addressSection: { marginBottom: Spacing.md },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  addressLine: {
-    width: 1.5,
-    height: 12,
-    backgroundColor: Colors.border,
-    marginLeft: 3.5,
-    marginVertical: 2,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.textPrimary,
-    fontWeight: '500',
-  },
+  addressSection: { marginBottom: 10 },
+  addressRow:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dot:            { width: 8, height: 8, borderRadius: 4 },
+  addressLine:    { width: 1.5, height: 10, backgroundColor: '#E0E0E0', marginLeft: 3.5, marginVertical: 2 },
+  addressText:    { flex: 1, fontSize: 13, color: '#1A1A2E', fontWeight: '500' },
 
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  description: {
-    flex: 1,
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginRight: Spacing.sm,
-  },
-  footerRight: { alignItems: 'flex-end', gap: 2 },
-  livreur: { fontSize: FontSize.xs, color: Colors.textSecondary },
-  prix: { fontSize: FontSize.md, fontWeight: '800', color: Colors.primary },
+  footer:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0F0F5' },
+  description: { flex: 1, fontSize: 11, color: '#999', marginRight: 8 },
+  prix:        { fontSize: 14, fontWeight: '800', color: '#4361EE' },
 });

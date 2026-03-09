@@ -18,6 +18,8 @@ const StackNavigator = () => {
     <Stack.Navigator
       screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
     >
+       <Stack.Screen name="Login"          component={LoginScreen} />
+      <Stack.Screen name="Register"       component={RegisterScreen} />
       {/* ── Order flow (initial) ── */}
       <Stack.Screen name="OrdersList"      component={OrdersListScreen} />
       <Stack.Screen name="CreateOrder"     component={CreateOrderScreen} />
@@ -26,8 +28,7 @@ const StackNavigator = () => {
       <Stack.Screen name="Navigation"      component={NavigationScreen} />
 
       {/* ── Auth / other roles ── */}
-      <Stack.Screen name="Login"          component={LoginScreen} />
-      <Stack.Screen name="Register"       component={RegisterScreen} />
+  
       <Stack.Screen name="AgenceDashboard" component={AgenceDashboardScreen} />
       <Stack.Screen name="LivreurHome"    component={LivreurHomeScreen} />
     </Stack.Navigator>
