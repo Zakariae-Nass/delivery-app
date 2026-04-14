@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,143 +6,22 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Keyboard,
 } from 'react-native';
+import useAddressSearch from '../hooks/useAddressSearch';
 
 const BLUE = '#4361EE';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function buildShortName(item) {
-  const a = item.address || {};
-  const parts = [
-    a.suburb || a.neighbourhood || a.quarter || a.hamlet,
-    a.city   || a.town          || a.village || a.county,
-    a.state,
-  ].filter(Boolean);
-  return (
-    parts.slice(0, 2).join(', ') ||
-    item.display_name.split(',').slice(0, 2).join(',').trim()
-  );
-}
-
-function shortFromText(text) {
-  return text.split(',').slice(0, 2).join(',').trim();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────────────────────────────────────
 export default function AddressAutocomplete({
   label,
   dotColor,
-  initialValue,       // { text, lat, lng } | null
-  onAddressSelected,  // (addr: { text, lat, lng }) => void
-  onAddressCleared,   // () => void
-  error,              // string | null
+  initialValue,
+  onAddressSelected,
+  onAddressCleared,
+  error,
   isGpsLoading = false,
 }) {
-  const [inputText,       setInputText]       = useState('');
-  const [suggestions,     setSuggestions]     = useState([]);
-  const [loading,         setLoading]         = useState(false);
-  const [selected,        setSelected]        = useState(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const search = useAddressSearch({ initialValue, onAddressSelected, onAddressCleared });
 
-  const timerRef = useRef(null);
-  const inputRef = useRef(null);
-
-  // ── React to initialValue changes (GPS pre-fill) ─────────────────────────
-  useEffect(() => {
-    if (initialValue?.lat) {
-      const shortName = shortFromText(initialValue.text);
-      setSelected({
-        text:      initialValue.text,
-        lat:       initialValue.lat,
-        lng:       initialValue.lng,
-        shortName,
-      });
-      setInputText(shortName);
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [initialValue]);
-
-  // ── Cleanup ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, []);
-
-  // ── Nominatim search ─────────────────────────────────────────────────────
-  const searchAddress = async (text) => {
-    setLoading(true);
-    try {
-      const url =
-        `https://nominatim.openstreetmap.org/search` +
-        `?q=${encodeURIComponent(text)}` +
-        `&format=json&limit=5&countrycodes=ma&addressdetails=1`;
-      const res  = await fetch(url, { headers: { 'User-Agent': 'DeliveryApp/1.0' } });
-      const data = await res.json();
-
-      if (data.length === 0) {
-        setSuggestions([{ id: 'noresult', noResult: true }]);
-      } else {
-        setSuggestions(
-          data.slice(0, 5).map((item, idx) => ({
-            id:        item.place_id?.toString() || String(idx),
-            text:      item.display_name,
-            lat:       parseFloat(item.lat),
-            lng:       parseFloat(item.lon),
-            shortName: buildShortName(item),
-          }))
-        );
-      }
-      setShowSuggestions(true);
-    } catch {
-      setSuggestions([{ id: 'noresult', noResult: true }]);
-      setShowSuggestions(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Text change handler ──────────────────────────────────────────────────
-  const handleChangeText = (text) => {
-    setInputText(text);
-    setSelected(null);
-    onAddressCleared();
-
-    if (text.length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      return;
-    }
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => searchAddress(text), 500);
-  };
-
-  // ── Select a suggestion ──────────────────────────────────────────────────
-  const handleSelect = (suggestion) => {
-    if (suggestion.noResult) return;
-    setSelected(suggestion);
-    setInputText(suggestion.shortName);
-    setSuggestions([]);
-    setShowSuggestions(false);
-    onAddressSelected({ text: suggestion.text, lat: suggestion.lat, lng: suggestion.lng });
-    Keyboard.dismiss();
-  };
-
-  // ── Edit (clear selection) ───────────────────────────────────────────────
-  const handleEdit = () => {
-    setSelected(null);
-    setInputText('');
-    setSuggestions([]);
-    setShowSuggestions(false);
-    onAddressCleared();
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
-  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <View>
       {/* Label */}
@@ -154,20 +33,20 @@ export default function AddressAutocomplete({
           <ActivityIndicator size="small" color={BLUE} />
           <Text style={ac.gpsText}>📍 Détection de votre position...</Text>
         </View>
-      ) : selected ? (
+      ) : search.selected ? (
         /* ── STATE 1: Address validated ── */
         <View style={[ac.selectedPill, error && ac.selectedPillError]}>
           <View style={[ac.pillDot, { backgroundColor: dotColor }]} />
           <View style={{ flex: 1 }}>
             <Text style={ac.pillShortName} numberOfLines={1}>
-              {selected.shortName}
+              {search.selected.shortName}
             </Text>
             <Text style={ac.pillFullName} numberOfLines={1}>
-              {selected.text.slice(0, 60)}
+              {search.selected.text.slice(0, 60)}
             </Text>
           </View>
           <TouchableOpacity
-            onPress={handleEdit}
+            onPress={search.handleEdit}
             style={ac.editBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -178,17 +57,17 @@ export default function AddressAutocomplete({
         /* ── STATE 2/3: Typing or empty ── */
         <View style={[ac.inputWrapper, error && ac.inputWrapperError]}>
           <TextInput
-            ref={inputRef}
+            ref={search.inputRef}
             style={ac.input}
-            value={inputText}
-            onChangeText={handleChangeText}
+            value={search.inputText}
+            onChangeText={search.handleChangeText}
             placeholder="Rechercher une adresse..."
             placeholderTextColor="#BDBDBD"
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
           />
-          {loading && (
+          {search.loading && (
             <ActivityIndicator size="small" color={BLUE} style={ac.inputSpinner} />
           )}
         </View>
@@ -198,9 +77,9 @@ export default function AddressAutocomplete({
       {error ? <Text style={ac.errorText}>{error}</Text> : null}
 
       {/* ── Suggestions list (inline, no z-index issues) ── */}
-      {showSuggestions && suggestions.length > 0 && (
+      {search.showSuggestions && search.suggestions.length > 0 && (
         <View style={ac.suggestionsList}>
-          {suggestions.map((s, idx) =>
+          {search.suggestions.map((s, idx) =>
             s.noResult ? (
               <View key="noresult" style={ac.noResultRow}>
                 <Text style={ac.noResultText}>
@@ -212,9 +91,9 @@ export default function AddressAutocomplete({
                 key={s.id}
                 style={[
                   ac.suggestionRow,
-                  idx < suggestions.length - 1 && ac.suggestionBorder,
+                  idx < search.suggestions.length - 1 && ac.suggestionBorder,
                 ]}
-                onPress={() => handleSelect(s)}
+                onPress={() => search.handleSelect(s)}
                 activeOpacity={0.7}
               >
                 <Text style={ac.suggestionPin}>📍</Text>

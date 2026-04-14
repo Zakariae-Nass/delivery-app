@@ -9,35 +9,10 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Colors, Spacing, Radius, FontSize } from '../../config/theme';
-import { MOCK_STATS_AGENCE } from '../../config/mockData';
+import { MOCK_STATS_AGENCE } from '../../utils/mocks/mockData';
+import { STATUS_CONFIG, VEHICLE_ICONS, DASHBOARD_FILTERS } from '../../config/constants';
 import { useApp } from '../../context/AppContext';
-
-// Status config aligned with CreateOrderScreen statut values
-const STATUS_CONFIG = {
-  // New (from CreateOrderScreen)
-  'En attente': { label: 'En attente', color: '#FF9F1C', bg: '#FFF8EE', icon: '⏳' },
-  'Assigné':    { label: 'Assigné',    color: '#4361EE', bg: '#EEF1FF', icon: '✅' },
-  'En cours':   { label: 'En cours',   color: '#4361EE', bg: '#EEF1FF', icon: '🚴' },
-  'Livré':      { label: 'Livré',      color: '#2DC653', bg: '#EAFAF1', icon: '✅' },
-  'Annulée':    { label: 'Annulée',    color: '#E63946', bg: '#FFF0F0', icon: '❌' },
-  // Legacy mock data keys
-  en_attente: { label: 'En attente', color: '#FF9F1C', bg: '#FFF8EE',             icon: '⏳' },
-  acceptee:   { label: 'Acceptée',   color: '#4361EE', bg: '#EEF1FF',             icon: '✅' },
-  en_route:   { label: 'En route',   color: Colors.primary, bg: Colors.primaryGhost, icon: '🚴' },
-  livree:     { label: 'Livrée',     color: '#2DC653', bg: '#EAFAF1',             icon: '✅' },
-  annulee:    { label: 'Annulée',    color: '#E63946', bg: '#FFF0F0',             icon: '❌' },
-};
-
-const VEHICLE_ICONS = {
-  moto: '🛵', voiture: '🚗', camionnette: '🚐', camion: '🚛',
-};
-
-const FILTERS = [
-  { key: 'toutes',     label: 'Toutes' },
-  { key: 'en_attente', label: 'En attente' },
-  { key: 'en_cours',   label: 'En cours' },
-  { key: 'livrees',    label: 'Livrées' },
-];
+import StatCard from '../../components/StatCard';
 
 export default function AgenceDashboardScreen({ navigation }) {
   const { orders } = useApp();
@@ -45,9 +20,9 @@ export default function AgenceDashboardScreen({ navigation }) {
 
   const filteredOrders = orders.filter((c) => {
     if (activeFilter === 'toutes')     return true;
-    if (activeFilter === 'en_cours')   return ['acceptee', 'en_route', 'pickup', 'Assigné', 'En cours'].includes(c.statut);
+    if (activeFilter === 'en_cours')   return ['acceptee', 'en_route', 'pickup', 'Assigne', 'En cours'].includes(c.statut);
     if (activeFilter === 'en_attente') return c.statut === 'en_attente' || c.statut === 'En attente';
-    if (activeFilter === 'livrees')    return c.statut === 'livree'     || c.statut === 'Livré';
+    if (activeFilter === 'livrees')    return c.statut === 'livree'     || c.statut === 'Livre';
     return true;
   });
 
@@ -61,10 +36,10 @@ export default function AgenceDashboardScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <View style={styles.topBar}>
           <View>
-            <Text style={styles.greeting}>Bonjour 👋</Text>
+            <Text style={styles.greeting}>Bonjour</Text>
             <Text style={styles.agenceName}>Express Maroc</Text>
           </View>
           <View style={styles.topBarRight}>
@@ -78,7 +53,7 @@ export default function AgenceDashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── Stats Cards ── */}
+        {/* Stats Cards */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -88,11 +63,11 @@ export default function AgenceDashboardScreen({ navigation }) {
           <StatCard icon="📦" label="Total"          value={MOCK_STATS_AGENCE.totalCommandes} color={Colors.info} />
           <StatCard icon="🚴" label="En cours"       value={MOCK_STATS_AGENCE.enCours}        color={Colors.primary} />
           <StatCard icon="⏳" label="En attente"     value={MOCK_STATS_AGENCE.enAttente}      color="#FF9F1C" />
-          <StatCard icon="✅" label="Livrées"        value={MOCK_STATS_AGENCE.livrees}        color="#2DC653" />
+          <StatCard icon="✅" label="Livrees"        value={MOCK_STATS_AGENCE.livrees}        color="#2DC653" />
           <StatCard icon="💰" label="Ce mois (MAD)"  value={MOCK_STATS_AGENCE.gainsMois}      color="#2DC653" />
         </ScrollView>
 
-        {/* ── Bouton Nouvelle Commande ── */}
+        {/* Bouton Nouvelle Commande */}
         <TouchableOpacity
           style={styles.newCommandeBtn}
           activeOpacity={0.85}
@@ -102,7 +77,7 @@ export default function AgenceDashboardScreen({ navigation }) {
           <Text style={styles.newCommandeText}>Nouvelle commande</Text>
         </TouchableOpacity>
 
-        {/* ── Section Commandes ── */}
+        {/* Section Commandes */}
         <View style={styles.sectionHeader}>
           <View style={styles.sectionLeft}>
             <Text style={styles.sectionTitle}>Mes commandes</Text>
@@ -120,7 +95,7 @@ export default function AgenceDashboardScreen({ navigation }) {
           style={styles.filtersScroll}
           contentContainerStyle={styles.filtersContent}
         >
-          {FILTERS.map((f) => (
+          {DASHBOARD_FILTERS.map((f) => (
             <TouchableOpacity
               key={f.key}
               style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
@@ -140,7 +115,7 @@ export default function AgenceDashboardScreen({ navigation }) {
               <Text style={styles.emptyIcon}>📭</Text>
               <Text style={styles.emptyText}>Aucune commande pour l'instant</Text>
               <TouchableOpacity onPress={() => navigation.navigate('CreateOrder')}>
-                <Text style={styles.emptyLink}>Créer une commande →</Text>
+                <Text style={styles.emptyLink}>Creer une commande →</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -158,22 +133,8 @@ export default function AgenceDashboardScreen({ navigation }) {
   );
 }
 
-// ── StatCard ──────────────────────────────────────────────────────────────────
-function StatCard({ icon, label, value, color }) {
-  return (
-    <View style={[statStyles.card, { borderTopColor: color }]}>
-      <Text style={statStyles.icon}>{icon}</Text>
-      <Text style={[statStyles.value, { color }]}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
-    </View>
-  );
-}
-
-// ── OrderCard ─────────────────────────────────────────────────────────────────
 function OrderCard({ order, onPress }) {
   const status = STATUS_CONFIG[order.statut] || STATUS_CONFIG['En attente'];
-
-  // Support both legacy mock fields and new CreateOrderScreen fields
   const pickup = order.pickupAdresse   || order.departTexte      || '—';
   const depot  = order.depotAdresse    || order.destinationTexte || '—';
   const vtype  = order.vehiculeType    || order.vehicleType      || '';
@@ -182,14 +143,11 @@ function OrderCard({ order, onPress }) {
 
   return (
     <TouchableOpacity style={[cardStyles.card, order.isUrgent && cardStyles.cardUrgent]} activeOpacity={0.8} onPress={onPress}>
-      {/* Urgent badge */}
       {order.isUrgent && (
         <View style={cardStyles.urgentBadge}>
           <Text style={cardStyles.urgentBadgeText}>🔴 URGENT</Text>
         </View>
       )}
-
-      {/* Header */}
       <View style={cardStyles.header}>
         <View style={cardStyles.idRow}>
           <Text style={cardStyles.vehicleIcon}>{VEHICLE_ICONS[vtype] || '📦'}</Text>
@@ -201,8 +159,6 @@ function OrderCard({ order, onPress }) {
           </Text>
         </View>
       </View>
-
-      {/* Adresses */}
       <View style={cardStyles.addressSection}>
         <View style={cardStyles.addressRow}>
           <View style={[cardStyles.dot, { backgroundColor: '#4361EE' }]} />
@@ -214,8 +170,6 @@ function OrderCard({ order, onPress }) {
           <Text style={cardStyles.addressText} numberOfLines={1}>{depot}</Text>
         </View>
       </View>
-
-      {/* Footer */}
       <View style={cardStyles.footer}>
         <Text style={cardStyles.description} numberOfLines={1}>📦 {desc}</Text>
         <Text style={cardStyles.prix}>{prix}</Text>
@@ -224,9 +178,6 @@ function OrderCard({ order, onPress }) {
   );
 }
 
-// ─────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea:      { flex: 1, backgroundColor: Colors.bgDark },
   container:     { flex: 1, backgroundColor: Colors.bgDark },
@@ -324,24 +275,8 @@ const styles = StyleSheet.create({
   emptyLink:  { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
 });
 
-const statStyles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    width: 110,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderTopWidth: 3,
-    alignItems: 'center',
-  },
-  icon:  { fontSize: 22, marginBottom: Spacing.xs },
-  value: { fontSize: FontSize.xl, fontWeight: '800', marginBottom: 2 },
-  label: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
-});
 
 const cardStyles = StyleSheet.create({
-  // White card matching OrdersListScreen style
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -371,7 +306,6 @@ const cardStyles = StyleSheet.create({
     zIndex: 1,
   },
   urgentBadgeText: { color: '#E63946', fontSize: 11, fontWeight: '700' },
-
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -383,13 +317,11 @@ const cardStyles = StyleSheet.create({
   id:          { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   statusText:  { fontSize: 11, fontWeight: '700' },
-
   addressSection: { marginBottom: 10 },
   addressRow:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot:            { width: 8, height: 8, borderRadius: 4 },
   addressLine:    { width: 1.5, height: 10, backgroundColor: '#E0E0E0', marginLeft: 3.5, marginVertical: 2 },
   addressText:    { flex: 1, fontSize: 13, color: '#1A1A2E', fontWeight: '500' },
-
   footer:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0F0F5' },
   description: { flex: 1, fontSize: 11, color: '#999', marginRight: 8 },
   prix:        { fontSize: 14, fontWeight: '800', color: '#4361EE' },

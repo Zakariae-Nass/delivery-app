@@ -8,66 +8,28 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useApp } from '../../context/AppContext';
-
-const BLUE    = '#4361EE';
-const SUCCESS = '#2DC653';
-const BG      = '#F5F7FF';
-
-const PKG_ICONS     = { general: '📦', vetements: '👗', electronique: '📱', alimentation: '🍔', medical: '💊', documents: '📄' };
-const VEHICLE_ICONS = { moto: '🏍️', voiture: '🚗', camion: '🚛' };
-
-function haversine(lat1, lng1, lat2, lng2) {
-  const R    = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLng = (lng2 - lng1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * (Math.PI / 180)) *
-    Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLng / 2) ** 2;
-  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
-}
+import { COLORS, PKG_ICONS, VEHICLE_ICONS } from '../../config/constants';
+import useNavigation from '../../hooks/useNavigation';
 
 export default function NavigationScreen({ navigation, route }) {
   const { orderId } = route.params;
-  const { orders }  = useApp();
-  const order       = orders.find(o => o.id === orderId);
+  const { order, distance, openMaps, hasCoords } = useNavigation(orderId);
 
   if (!order) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: BG, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ fontSize: 16, color: '#999' }}>Commande introuvable</Text>
         <TouchableOpacity onPress={() => navigation.navigate('OrdersList')} style={{ marginTop: 16 }}>
-          <Text style={{ color: BLUE, fontWeight: '700' }}>← Retour</Text>
+          <Text style={{ color: COLORS.blue, fontWeight: '700' }}>← Retour</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
-  const driver   = order.assignedDriver;
-  const hasCoords =
-    order.departLat != null &&
-    order.departLng != null &&
-    order.destinationLat != null &&
-    order.destinationLng != null;
-
-  const distance = hasCoords
-    ? haversine(order.departLat, order.departLng, order.destinationLat, order.destinationLng)
-    : null;
-
-  const openMaps = () => {
-    const url =
-      `https://www.google.com/maps/dir/?api=1` +
-      `&origin=${order.departLat},${order.departLng}` +
-      `&destination=${order.destinationLat},${order.destinationLng}` +
-      `&travelmode=driving`;
-    Linking.openURL(url);
-  };
+  const driver = order.assignedDriver;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
-      {/* HEADER */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backBtnText}>←</Text>
@@ -79,8 +41,6 @@ export default function NavigationScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* DRIVER CARD */}
         {driver && (
           <View style={styles.card}>
             <View style={styles.driverRow}>
@@ -90,26 +50,22 @@ export default function NavigationScreen({ navigation, route }) {
                 <Text style={styles.driverRating}>⭐ {driver.rating} · {driver.trips} courses</Text>
               </View>
               <View style={styles.assignedBadge}>
-                <Text style={styles.assignedBadgeText}>Livreur assigné</Text>
+                <Text style={styles.assignedBadgeText}>Livreur assigne</Text>
               </View>
             </View>
           </View>
         )}
 
-        {/* ROUTE CARD */}
         <View style={styles.card}>
           <View style={styles.routeContainer}>
-            {/* Left connector */}
             <View style={styles.connector}>
-              <View style={[styles.connDot, { backgroundColor: BLUE }]} />
+              <View style={[styles.connDot, { backgroundColor: COLORS.blue }]} />
               <View style={styles.connLine} />
-              <View style={[styles.connDot, { backgroundColor: '#E63946' }]} />
+              <View style={[styles.connDot, { backgroundColor: COLORS.danger }]} />
             </View>
-
-            {/* Right text */}
             <View style={{ flex: 1 }}>
               <View style={styles.routeItem}>
-                <Text style={styles.routeLabel}>DÉPART</Text>
+                <Text style={styles.routeLabel}>DEPART</Text>
                 <Text style={styles.routeAddress} numberOfLines={3}>
                   {order.departTexte || '—'}
                 </Text>
@@ -122,15 +78,13 @@ export default function NavigationScreen({ navigation, route }) {
               </View>
             </View>
           </View>
-
           {distance && (
             <View style={styles.distanceRow}>
-              <Text style={styles.distanceText}>📏 ~{distance} km estimés</Text>
+              <Text style={styles.distanceText}>📏 ~{distance} km estimes</Text>
             </View>
           )}
         </View>
 
-        {/* NAVIGATE BUTTON */}
         <TouchableOpacity
           style={[styles.mapsBtn, !hasCoords && styles.mapsBtnDisabled]}
           onPress={openMaps}
@@ -139,10 +93,8 @@ export default function NavigationScreen({ navigation, route }) {
           <Text style={styles.mapsBtnText}>🗺️ Lancer la navigation Google Maps</Text>
         </TouchableOpacity>
 
-        {/* ORDER DETAILS CARD */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Détails commande</Text>
-
+          <Text style={styles.cardTitle}>Details commande</Text>
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>COLIS</Text>
@@ -151,7 +103,7 @@ export default function NavigationScreen({ navigation, route }) {
               </Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>VÉHICULE</Text>
+              <Text style={styles.detailLabel}>VEHICULE</Text>
               <Text style={styles.detailValue}>
                 {VEHICLE_ICONS[order.vehicleType] || '🚗'} {order.vehicleType || '—'}
               </Text>
@@ -162,12 +114,11 @@ export default function NavigationScreen({ navigation, route }) {
             </View>
             <View style={styles.detailItem}>
               <Text style={styles.detailLabel}>PRIX</Text>
-              <Text style={[styles.detailValue, { color: BLUE, fontWeight: '700' }]}>
+              <Text style={[styles.detailValue, { color: COLORS.blue, fontWeight: '700' }]}>
                 {order.prix} MAD
               </Text>
             </View>
           </View>
-
           <View style={styles.clientRow}>
             <Text style={styles.clientName}>👤 {order.clientNom}</Text>
             <TouchableOpacity onPress={() => Linking.openURL(`tel:${order.clientTelephone}`)}>
@@ -200,12 +151,12 @@ const styles = StyleSheet.create({
   backBtnText: { fontSize: 26, color: '#333' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A2E' },
   orderBadge: {
-    backgroundColor: '#EEF1FF',
+    backgroundColor: COLORS.blueLight,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  orderBadgeText: { color: BLUE, fontWeight: '700', fontSize: 13 },
+  orderBadgeText: { color: COLORS.blue, fontWeight: '700', fontSize: 13 },
 
   scroll: { padding: 16 },
 
@@ -222,7 +173,6 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A2E', marginBottom: 14 },
 
-  // Driver
   driverRow: { flexDirection: 'row', alignItems: 'center' },
   driverAvatar: { fontSize: 48, marginRight: 14 },
   driverInfo: { flex: 1 },
@@ -234,9 +184,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  assignedBadgeText: { color: SUCCESS, fontWeight: '700', fontSize: 11 },
+  assignedBadgeText: { color: COLORS.success, fontWeight: '700', fontSize: 11 },
 
-  // Route
   routeContainer: { flexDirection: 'row' },
   connector: {
     width: 20,
@@ -264,14 +213,13 @@ const styles = StyleSheet.create({
   },
   distanceText: { fontSize: 14, color: '#555', fontWeight: '600' },
 
-  // Maps button
   mapsBtn: {
-    backgroundColor: BLUE,
+    backgroundColor: COLORS.blue,
     borderRadius: 16,
     padding: 18,
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: BLUE,
+    shadowColor: COLORS.blue,
     shadowOpacity: 0.35,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -280,7 +228,6 @@ const styles = StyleSheet.create({
   mapsBtnDisabled: { backgroundColor: '#BDBDBD', shadowOpacity: 0 },
   mapsBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // Details grid
   detailsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -288,7 +235,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   detailItem: {
-    backgroundColor: BG,
+    backgroundColor: COLORS.bg,
     borderRadius: 10,
     padding: 10,
     minWidth: '45%',
@@ -297,7 +244,6 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 10, color: '#999', fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 },
   detailValue: { fontSize: 13, color: '#1A1A2E', fontWeight: '600' },
 
-  // Client
   clientRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -307,5 +253,5 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0F0F5',
   },
   clientName: { fontSize: 14, color: '#333', fontWeight: '600' },
-  clientPhone: { fontSize: 13, color: BLUE, fontWeight: '600' },
+  clientPhone: { fontSize: 13, color: COLORS.blue, fontWeight: '600' },
 });

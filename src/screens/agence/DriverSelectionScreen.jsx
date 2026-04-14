@@ -1,20 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useApp } from '../../context/AppContext';
-
-const BLUE   = '#4361EE';
-const DANGER = '#E63946';
-const BG     = '#F5F7FF';
-
-const TIMER_TOTAL = 120; // seconds
+import { COLORS } from '../../config/constants';
+import useDriverSelection from '../../hooks/useDriverSelection';
 
 function StarRating({ rating }) {
   const filled = Math.min(5, Math.round(rating));
@@ -35,7 +29,7 @@ function DriverCard({ driver, onAssign }) {
       <View style={styles.driverInfo}>
         <Text style={styles.driverName}>{driver.name}</Text>
         <StarRating rating={driver.rating} />
-        <Text style={styles.driverTrips}>{driver.trips} courses effectuées</Text>
+        <Text style={styles.driverTrips}>{driver.trips} courses effectuees</Text>
       </View>
       <TouchableOpacity style={styles.assignBtn} onPress={() => onAssign(driver)}>
         <Text style={styles.assignBtnText}>Choisir</Text>
@@ -46,104 +40,18 @@ function DriverCard({ driver, onAssign }) {
 
 export default function DriverSelectionScreen({ navigation, route }) {
   const { orderId } = route.params;
-  const { orders, updateOrder, addNotification } = useApp();
-
-  const [timeLeft, setTimeLeft] = useState(TIMER_TOTAL);
-  const hasAssigned = useRef(false);
-
-  // Live order from context — updates as simulation adds applicants
-  const order = orders.find(o => o.id === orderId);
-  const orderRef = useRef(order);
-  orderRef.current = order; // always up-to-date inside effects
-
-  // ── Countdown ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // ── Auto-assign when timer expires ─────────────────────────────────────────
-  useEffect(() => {
-    if (timeLeft !== 0 || hasAssigned.current) return;
-    hasAssigned.current = true;
-
-    const currentOrder = orderRef.current;
-    if (!currentOrder?.applicants?.length) {
-      navigation.navigate('OrdersList');
-      return;
-    }
-    const driver = currentOrder.applicants.reduce((best, d) =>
-      d.rating > best.rating ? d : best
-    );
-
-    updateOrder(orderId, { statut: 'Assigné', assignedDriver: driver });
-    addNotification({
-      id: Date.now().toString(),
-      orderId,
-      orderShortId: orderId.slice(-4),
-      type: 'auto_assigned',
-      driverName: driver.name,
-      driverId: driver.id,
-      read: false,
-      createdAt: new Date(),
-    });
-    Alert.alert(
-      '🤖 Assignation automatique',
-      `Délai expiré. ${driver.name} (⭐ ${driver.rating}) a été automatiquement assigné.`,
-      [{ text: 'OK', onPress: () => navigation.navigate('OrdersList') }]
-    );
-  }, [timeLeft]);
-
-  // ── Manual assign ──────────────────────────────────────────────────────────
-  const handleAssignDriver = (driver) => {
-    if (hasAssigned.current) return;
-    hasAssigned.current = true;
-
-    updateOrder(orderId, { statut: 'Assigné', assignedDriver: driver });
-    addNotification({
-      id: Date.now().toString(),
-      orderId,
-      orderShortId: orderId.slice(-4),
-      type: 'agency_assigned',
-      driverName: driver.name,
-      driverId: driver.id,
-      read: false,
-      createdAt: new Date(),
-    });
-    Alert.alert(
-      '✅ Livreur assigné',
-      `${driver.name} a été notifié et va prendre en charge la commande.`,
-      [
-        {
-          text: '🗺️ Voir la navigation',
-          onPress: () => navigation.navigate('Navigation', { orderId }),
-        },
-        {
-          text: 'Retour aux commandes',
-          style: 'cancel',
-          onPress: () => navigation.navigate('OrdersList'),
-        },
-      ]
-    );
-  };
-
-  const minutes    = Math.floor(timeLeft / 60);
-  const seconds    = timeLeft % 60;
-  const timerText  = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  const isUrgent   = timeLeft < 30 && timeLeft > 0;
-  const applicants = order?.applicants || [];
-  const shortId    = orderId.slice(-4);
+  const {
+    timeLeft,
+    timerText,
+    isTimerUrgent,
+    applicants,
+    shortId,
+    handleAssignDriver,
+    TIMER_TOTAL,
+  } = useDriverSelection(orderId, navigation);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -158,32 +66,27 @@ export default function DriverSelectionScreen({ navigation, route }) {
       <FlatList
         data={applicants}
         keyExtractor={item => item.id}
-        extraData={applicants.length} // re-render when new applicants arrive
+        extraData={applicants.length}
         ListHeaderComponent={(
           <>
-            {/* TIMER CARD */}
             <View style={styles.timerCard}>
-              <Text style={[styles.timerDisplay, isUrgent && styles.timerUrgent]}>
+              <Text style={[styles.timerDisplay, isTimerUrgent && styles.timerUrgent]}>
                 {timerText}
               </Text>
               <Text style={styles.timerLabel}>Temps restant pour choisir</Text>
-
-              {/* Linear progress bar */}
               <View style={styles.barBg}>
                 <View
                   style={[
                     styles.barFill,
                     { width: `${(timeLeft / TIMER_TOTAL) * 100}%` },
-                    isUrgent && { backgroundColor: DANGER },
+                    isTimerUrgent && { backgroundColor: COLORS.danger },
                   ]}
                 />
               </View>
-
               {applicants.length === 0 && (
-                <Text style={styles.waitingText}>⏳ En attente de livreurs...</Text>
+                <Text style={styles.waitingText}>En attente de livreurs...</Text>
               )}
             </View>
-
             {applicants.length > 0 && (
               <Text style={styles.sectionLabel}>
                 {applicants.length} livreur{applicants.length > 1 ? 's' : ''} disponible{applicants.length > 1 ? 's' : ''}
@@ -219,16 +122,15 @@ const styles = StyleSheet.create({
   backBtnText: { fontSize: 26, color: '#333' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A2E' },
   orderBadge: {
-    backgroundColor: '#EEF1FF',
+    backgroundColor: COLORS.blueLight,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  orderBadgeText: { color: BLUE, fontWeight: '700', fontSize: 13 },
+  orderBadgeText: { color: COLORS.blue, fontWeight: '700', fontSize: 13 },
 
   list: { padding: 16, paddingBottom: 40 },
 
-  // Timer
   timerCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -249,7 +151,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontVariant: ['tabular-nums'],
   },
-  timerUrgent: { color: DANGER },
+  timerUrgent: { color: COLORS.danger },
   timerLabel: { fontSize: 13, color: '#999', marginBottom: 18 },
   barBg: {
     width: '100%',
@@ -260,7 +162,7 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: 6,
-    backgroundColor: BLUE,
+    backgroundColor: COLORS.blue,
     borderRadius: 3,
   },
   waitingText: { fontSize: 14, color: '#999', marginTop: 14 },
@@ -273,7 +175,6 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
 
-  // Driver card
   driverCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,11 +194,11 @@ const styles = StyleSheet.create({
   stars: { fontSize: 13, marginBottom: 3 },
   driverTrips: { fontSize: 12, color: '#999' },
   assignBtn: {
-    backgroundColor: BLUE,
+    backgroundColor: COLORS.blue,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    shadowColor: BLUE,
+    shadowColor: COLORS.blue,
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 2,

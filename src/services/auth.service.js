@@ -1,21 +1,17 @@
-import apiClient from '../api/axios.config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authApi } from '../api/auth.api';
 
 export const authService = {
-
   login: async (data) => {
-    const response = await apiClient.post('/auth/login', data);
-    return response.data;
+    return authApi.login(data);
   },
 
   register: async (data) => {
-    const response = await apiClient.post('/auth/register', data);
-    return response.data;
+    return authApi.register(data);
   },
 
   logout: async () => {
-    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
   },
-
 };

@@ -12,13 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Spacing, Radius, FontSize } from '../../config/theme';
-import { MOCK_COMMANDES_LIVREUR, MOCK_STATS_LIVREUR } from '../../config/mockData';
-
-const VEHICLE_ICONS = {
-  moto: '🛵',
-  voiture: '🚗',
-  camionnette: '🚐',
-};
+import { MOCK_COMMANDES_LIVREUR, MOCK_STATS_LIVREUR } from '../../utils/mocks/mockData';
+import { VEHICLE_ICONS } from '../../config/constants';
 
 export default function LivreurHomeScreen({ navigation }) {
   const [isOnline, setIsOnline] = useState(true);
