@@ -1,3 +1,21 @@
+/**
+ * RegisterScreen.jsx
+ *
+ * Écran d'inscription — branché sur le backend réel.
+ *
+ * Corrections par rapport à la version précédente :
+ * 1. Champ "nom" → état `username` (le backend attend `username`, pas `nom`)
+ * 2. Champ "telephone" → état `phone` (le backend attend `phone`)
+ * 3. handleRegister appelle authService.register() avec les bons champs
+ *    et la bonne route (/auth/register/agency ou /auth/register/delivery)
+ * 4. Gestion des erreurs API (email déjà utilisé, username pris, etc.)
+ *
+ * Ce qui N'A PAS changé :
+ * → Tout l'UI (labels, placeholders, styles, sélection de rôle, barre de force)
+ * → Le label affiché est toujours "Nom de l'agence" / "Nom complet"
+ *   mais la valeur est stockée dans `username` pour correspondre au backend
+ */
+
 import React, { useState } from 'react';
 import {
   View,
@@ -13,47 +31,62 @@ import {
   Alert,
 } from 'react-native';
 import { Colors, Spacing, Radius, FontSize } from '../../config/theme';
+import { authService } from '../../services/auth.service';
 
 const ROLES = [
-  {
-    value: 'agence',
-    icon: '🏢',
-    label: 'Agence',
-    desc: 'Je crée des livraisons',
-  },
-  {
-    value: 'livreur',
-    icon: '🛵',
-    label: 'Livreur',
-    desc: 'Je livre des colis',
-  },
+  { value: 'agence',  icon: '🏢', label: 'Agence',  desc: 'Je crée des livraisons' },
+  { value: 'livreur', icon: '🛵', label: 'Livreur', desc: 'Je livre des colis' },
 ];
 
 export default function RegisterScreen({ navigation }) {
-  const [role, setRole] = useState('agence');
-  const [nom, setNom] = useState('');
-  const [email, setEmail] = useState('');
-  const [telephone, setTelephone] = useState('');
-  const [password, setPassword] = useState('');
+  const [role,         setRole]         = useState('agence');
+  const [username,     setUsername]     = useState('');   // ← était "nom"
+  const [email,        setEmail]        = useState('');
+  const [phone,        setPhone]        = useState('');   // ← était "telephone"
+  const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState(null);
   const [focusedInput, setFocusedInput] = useState(null);
 
-  const isFormValid = nom && email && telephone && password.length >= 6;
+  const isFormValid = username.trim() && email.trim() && phone.trim() && password.length >= 6;
 
-  const handleRegister = () => {
+  // ── Handler principal ──────────────────────────────────────────────────────
+  const handleRegister = async () => {
     if (!isFormValid) return;
-    setLoading(true);
 
-    // Mock — sera remplacé par useAuth + backend
-    setTimeout(() => {
-      setLoading(false);
+    setLoading(true);
+    setError(null);
+
+    try {
+      // authService.register mappe le rôle vers la bonne route :
+      // 'livreur' → POST /auth/register/delivery
+      // 'agence'  → POST /auth/register/agency
+      await authService.register({
+        username: username.trim(),
+        email:    email.trim(),
+        password,
+        phone:    phone.trim(),
+        role,
+      });
+
+      // Succès → informer l'utilisateur et rediriger vers Login
       Alert.alert(
         '✅ Compte créé !',
         'Votre compte a été créé avec succès. Connectez-vous maintenant.',
         [{ text: 'Se connecter', onPress: () => navigation.navigate('Login') }]
       );
-    }, 1200);
+
+    } catch (err) {
+      // NestJS retourne { message: "...", statusCode: 409/400 }
+      // Cas courants : email déjà utilisé (409), username déjà pris (400)
+      const msg =
+        err?.response?.data?.message ||
+        "Une erreur est survenue. Réessayez.";
+      setError(Array.isArray(msg) ? msg.join('\n') : msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,10 +102,7 @@ export default function RegisterScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Créer un compte</Text>
@@ -86,7 +116,7 @@ export default function RegisterScreen({ navigation }) {
             <TouchableOpacity
               key={r.value}
               style={[styles.roleCard, role === r.value && styles.roleCardActive]}
-              onPress={() => setRole(r.value)}
+              onPress={() => { setRole(r.value); setError(null); }}
               activeOpacity={0.8}
             >
               <Text style={styles.roleIcon}>{r.icon}</Text>
@@ -107,23 +137,24 @@ export default function RegisterScreen({ navigation }) {
 
         {/* Formulaire */}
         <View style={styles.card}>
-          {/* Nom */}
+
+          {/* Nom / Username */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>
               {role === 'agence' ? "Nom de l'agence" : 'Nom complet'}
             </Text>
             <View style={[
               styles.inputWrapper,
-              focusedInput === 'nom' && styles.inputWrapperFocused
+              focusedInput === 'username' && styles.inputWrapperFocused
             ]}>
               <Text style={styles.inputIcon}>{role === 'agence' ? '🏢' : '👤'}</Text>
               <TextInput
                 style={styles.input}
                 placeholder={role === 'agence' ? 'Express Maroc SARL' : 'Youssef Benali'}
                 placeholderTextColor={Colors.textMuted}
-                value={nom}
-                onChangeText={setNom}
-                onFocus={() => setFocusedInput('nom')}
+                value={username}
+                onChangeText={(v) => { setUsername(v); setError(null); }}
+                onFocus={() => setFocusedInput('username')}
                 onBlur={() => setFocusedInput(null)}
               />
             </View>
@@ -142,9 +173,10 @@ export default function RegisterScreen({ navigation }) {
                 placeholder="votre@email.com"
                 placeholderTextColor={Colors.textMuted}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(v) => { setEmail(v); setError(null); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 onFocus={() => setFocusedInput('email')}
                 onBlur={() => setFocusedInput(null)}
               />
@@ -156,7 +188,7 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.inputLabel}>Téléphone</Text>
             <View style={[
               styles.inputWrapper,
-              focusedInput === 'tel' && styles.inputWrapperFocused
+              focusedInput === 'phone' && styles.inputWrapperFocused
             ]}>
               <Text style={styles.inputIcon}>📱</Text>
               <Text style={styles.prefixText}>+212 </Text>
@@ -164,10 +196,10 @@ export default function RegisterScreen({ navigation }) {
                 style={styles.input}
                 placeholder="6 12 34 56 78"
                 placeholderTextColor={Colors.textMuted}
-                value={telephone}
-                onChangeText={setTelephone}
+                value={phone}
+                onChangeText={(v) => { setPhone(v); setError(null); }}
                 keyboardType="phone-pad"
-                onFocus={() => setFocusedInput('tel')}
+                onFocus={() => setFocusedInput('phone')}
                 onBlur={() => setFocusedInput(null)}
               />
             </View>
@@ -186,7 +218,7 @@ export default function RegisterScreen({ navigation }) {
                 placeholder="Minimum 6 caractères"
                 placeholderTextColor={Colors.textMuted}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(v) => { setPassword(v); setError(null); }}
                 secureTextEntry={!showPassword}
                 onFocus={() => setFocusedInput('password')}
                 onBlur={() => setFocusedInput(null)}
@@ -195,6 +227,7 @@ export default function RegisterScreen({ navigation }) {
                 <Text style={styles.inputIcon}>{showPassword ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
+
             {/* Barre de force du mot de passe */}
             {password.length > 0 && (
               <View style={styles.passwordStrength}>
@@ -220,7 +253,7 @@ export default function RegisterScreen({ navigation }) {
             )}
           </View>
 
-          {/* Livreur — note sur les documents */}
+          {/* Note documents pour livreurs */}
           {role === 'livreur' && (
             <View style={styles.infoBox}>
               <Text style={styles.infoIcon}>📋</Text>
@@ -229,6 +262,13 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </View>
           )}
+
+          {/* ── Message d'erreur API ── */}
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>⚠️ {error}</Text>
+            </View>
+          ) : null}
 
           {/* Bouton */}
           <TouchableOpacity
@@ -271,9 +311,7 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  header: {
-    marginBottom: Spacing.xl,
-  },
+  header: { marginBottom: Spacing.xl },
   backBtn: {
     width: 40,
     height: 40,
@@ -285,20 +323,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  backIcon: {
-    fontSize: 20,
-    color: Colors.textPrimary,
-  },
-  title: {
-    fontSize: FontSize.xxl,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-  },
-  subtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-  },
+  backIcon: { fontSize: 20, color: Colors.textPrimary },
+  title: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.textPrimary },
+  subtitle: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: Spacing.xs },
 
   // Role
   sectionLabel: {
@@ -309,11 +336,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: Spacing.sm,
   },
-  roleRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: Spacing.lg,
-  },
+  roleRow: { flexDirection: 'row', gap: 12, marginBottom: Spacing.lg },
   roleCard: {
     flex: 1,
     backgroundColor: Colors.bgCard,
@@ -324,47 +347,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  roleCardActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryGhost,
-  },
-  roleIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.sm,
-  },
-  roleLabel: {
-    fontSize: FontSize.md,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 2,
-  },
-  roleLabelActive: {
-    color: Colors.textPrimary,
-  },
-  roleDesc: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  roleDescActive: {
-    color: Colors.textSecondary,
-  },
+  roleCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryGhost },
+  roleIcon: { fontSize: 32, marginBottom: Spacing.sm },
+  roleLabel: { fontSize: FontSize.md, fontWeight: '700', color: Colors.textSecondary, marginBottom: 2 },
+  roleLabelActive: { color: Colors.textPrimary },
+  roleDesc: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
+  roleDescActive: { color: Colors.textSecondary },
   roleCheckmark: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: 'absolute', top: 8, right: 8,
+    width: 20, height: 20, borderRadius: Radius.full,
+    backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
   },
-  roleCheckmarkText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  roleCheckmarkText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   // Card
   card: {
@@ -377,9 +371,7 @@ const styles = StyleSheet.create({
   },
 
   // Input
-  inputGroup: {
-    marginBottom: Spacing.md,
-  },
+  inputGroup: { marginBottom: Spacing.md },
   inputLabel: {
     fontSize: FontSize.sm,
     fontWeight: '600',
@@ -402,20 +394,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: 'rgba(255, 107, 53, 0.05)',
   },
-  inputIcon: {
-    fontSize: 16,
-    marginRight: Spacing.sm,
-  },
-  prefixText: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.md,
-    marginRight: 2,
-  },
-  input: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: FontSize.md,
-  },
+  inputIcon: { fontSize: 16, marginRight: Spacing.sm },
+  prefixText: { color: Colors.textSecondary, fontSize: FontSize.md, marginRight: 2 },
+  input: { flex: 1, color: Colors.textPrimary, fontSize: FontSize.md },
 
   // Password strength
   passwordStrength: {
@@ -449,13 +430,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     gap: 8,
   },
-  infoIcon: {
-    fontSize: 16,
+  infoIcon: { fontSize: 16 },
+  infoText: { flex: 1, fontSize: FontSize.xs, color: Colors.textSecondary, lineHeight: 18 },
+
+  // Error box
+  errorBox: {
+    backgroundColor: '#2A1215',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#4A1520',
   },
-  infoText: {
-    flex: 1,
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+  errorText: {
+    fontSize: FontSize.sm,
+    color: '#FF6B6B',
     lineHeight: 18,
   },
 
@@ -472,27 +461,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  btnDisabled: {
-    opacity: 0.45,
-  },
-  btnPrimaryText: {
-    color: '#fff',
-    fontSize: FontSize.lg,
-    fontWeight: '700',
-  },
+  btnDisabled: { opacity: 0.45 },
+  btnPrimaryText: { color: '#fff', fontSize: FontSize.lg, fontWeight: '700' },
 
   // Footer
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  footerText: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-  },
-  footerLink: {
-    fontSize: FontSize.sm,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
+  footer: { flexDirection: 'row', justifyContent: 'center' },
+  footerText: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  footerLink: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '700' },
 });

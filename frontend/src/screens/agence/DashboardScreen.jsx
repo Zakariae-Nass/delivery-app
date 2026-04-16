@@ -85,15 +85,20 @@ export default function AgenceDashboardScreen({ navigation }) {
         </ScrollView>
 
         {/* ── Bouton Nouvelle Commande ── */}
-        <TouchableOpacity style={styles.newCommandeBtn} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.newCommandeBtn} activeOpacity={0.85} onPress={() => navigation.navigate('CreateOrder')}>
           <Text style={styles.newCommandeIcon}>+</Text>
           <Text style={styles.newCommandeText}>Nouvelle commande</Text>
         </TouchableOpacity>
 
         {/* ── Section Commandes ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Mes commandes</Text>
-          <Text style={styles.sectionCount}>{filteredCommandes.length}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.sectionTitle}>Mes commandes</Text>
+            <Text style={styles.sectionCount}>{filteredCommandes.length}</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('OrdersList')}>
+            <Text style={styles.voirTout}>Voir toutes →</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Filtres */}
@@ -118,9 +123,19 @@ export default function AgenceDashboardScreen({ navigation }) {
 
         {/* Liste commandes */}
         <View style={styles.commandesList}>
-          {filteredCommandes.map((commande) => (
-            <CommandeCard key={commande.id} commande={commande} />
-          ))}
+          {filteredCommandes.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📭</Text>
+              <Text style={styles.emptyText}>Aucune commande pour l'instant</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('CreateOrder')}>
+                <Text style={styles.emptyLink}>Créer une commande →</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            filteredCommandes.map((commande) => (
+              <CommandeCard key={commande.id} commande={commande} />
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -259,10 +274,11 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    gap: 8,
   },
+  voirTout: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
   sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
   sectionCount: {
     backgroundColor: Colors.bgElevated,
@@ -294,6 +310,11 @@ const styles = StyleSheet.create({
   filterTextActive: { color: Colors.primary },
 
   commandesList: { paddingHorizontal: Spacing.lg, gap: 12 },
+
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
+  emptyIcon:  { fontSize: 52, marginBottom: 12 },
+  emptyText:  { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: 12 },
+  emptyLink:  { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '700' },
 });
 
 const statStyles = StyleSheet.create({
