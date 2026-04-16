@@ -1,5 +1,0 @@
- // return (
-  // //   <NavigationContainer>
-  // //     <StackNavigator />
-  // //   </NavigationContainer>
-  // // );

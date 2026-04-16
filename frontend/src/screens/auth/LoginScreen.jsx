@@ -1,3 +1,26 @@
+/**
+ * LoginScreen.jsx
+ *
+ * Écran de connexion — branché sur Redux et le backend réel.
+ *
+ * Flux :
+ * 1. Utilisateur saisit email + password et appuie sur "Se connecter"
+ * 2. dispatch(loginStart())  → Redux: loading = true
+ * 3. authService.login()     → POST /auth/login + GET /auth/me
+ * 4a. Succès → dispatch(loginSuccess({ user, token }))
+ *             → Redux: isLoggedIn = true, user = {...}, loading = false
+ *             → StackNavigator réagit automatiquement et affiche le bon écran
+ * 4b. Échec  → dispatch(loginFailure("message"))
+ *             → Redux: error = "message", loading = false
+ *             → L'erreur s'affiche sous le formulaire
+ *
+ * Ce qui a changé par rapport à la version précédente :
+ * → handleLogin : suppression du mock setTimeout, appel réel au service
+ * → loading et error : lus depuis Redux (useSelector) au lieu d'un useState local
+ * → clearError : dispatché quand l'utilisateur retape dans un champ
+ * → Suppression du hint "tapez livreur dans l'email" (logique mock supprimée)
+ */
+
 import React, { useState } from 'react';
 import {
   View,
@@ -12,6 +35,10 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+
+import { loginStart, loginSuccess, loginFailure, clearError } from '../../redux/slices/authSlice';
+import { authService } from '../../services/auth.service';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const CORAL     = '#FF6B5B';
@@ -21,6 +48,7 @@ const LIGHT_BG  = '#F5F5F7';
 const DARK_TEXT = '#1C1C1E';
 const GRAY_LABEL= '#8E8EA0';
 const GRAY_DIV  = '#ECECF0';
+const ERROR_RED = '#E63946';
 
 const CARD_SHADOW = {
   shadowColor: '#000',
@@ -32,24 +60,50 @@ const CARD_SHADOW = {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function LoginScreen({ navigation }) {
+  const dispatch = useDispatch();
+
+  // Lecture de l'état depuis Redux
+  // → loading : contrôle le spinner et désactive le bouton
+  // → error   : message d'erreur affiché sous le formulaire
+  const { loading, error } = useSelector((state) => state.auth);
+
+  // État local pour les champs du formulaire (pas besoin de Redux pour ça)
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading,      setLoading]      = useState(false);
   const [focused,      setFocused]      = useState(null);
 
-  const handleLogin = () => {
-    if (!email || !password) return;
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      if (email.includes('livreur')) {
-        navigation.replace('LivreurHome');
-      } else {
-        navigation.replace('AgenceDashboard');
-      }
-    }, 1200);
+  // ── Handler principal ──────────────────────────────────────────────────────
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) return;
+
+    // 1. Signale à Redux qu'un appel réseau commence (spinner ON)
+    dispatch(loginStart());
+
+    try {
+      // 2. Appel au service : POST /auth/login → GET /auth/me
+      //    Retourne { token, user: { id, email, username, role, ... } }
+      const { token, user } = await authService.login({ email: email.trim(), password });
+
+      // 3. Succès : stocke user + token dans Redux
+      //    StackNavigator détecte isLoggedIn = true et reroute automatiquement
+      dispatch(loginSuccess({ token, user }));
+
+    } catch (err) {
+      // 4. Échec : extrait le message d'erreur du backend
+      //    NestJS retourne { message: "Invalid credentials", statusCode: 401 }
+      const message =
+        err?.response?.data?.message ||
+        'Impossible de se connecter. Vérifiez votre connexion.';
+      dispatch(loginFailure(message));
+    }
   };
+
+  // Efface l'erreur dès que l'utilisateur retouche un champ
+  const handleEmailChange    = (v) => { setEmail(v);    if (error) dispatch(clearError()); };
+  const handlePasswordChange = (v) => { setPassword(v); if (error) dispatch(clearError()); };
+
+  const canSubmit = email.trim().length > 0 && password.trim().length > 0 && !loading;
 
   return (
     <KeyboardAvoidingView
@@ -89,9 +143,10 @@ export default function LoginScreen({ navigation }) {
                 placeholder="votre@email.com"
                 placeholderTextColor={GRAY_LABEL}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 onFocus={() => setFocused('email')}
                 onBlur={() => setFocused(null)}
               />
@@ -108,27 +163,37 @@ export default function LoginScreen({ navigation }) {
                 placeholder="••••••••"
                 placeholderTextColor={GRAY_LABEL}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
                 secureTextEntry={!showPassword}
                 onFocus={() => setFocused('password')}
                 onBlur={() => setFocused(null)}
               />
-              <TouchableOpacity onPress={() => setShowPassword(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(v => !v)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Text style={s.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Forgot password */}
+          {/* Mot de passe oublié */}
           <TouchableOpacity style={s.forgotRow} activeOpacity={0.7}>
             <Text style={s.forgotText}>Mot de passe oublié ?</Text>
           </TouchableOpacity>
 
-          {/* Submit */}
+          {/* ── Message d'erreur API ── */}
+          {error ? (
+            <View style={s.errorBox}>
+              <Text style={s.errorText}>⚠️ {error}</Text>
+            </View>
+          ) : null}
+
+          {/* Bouton connexion */}
           <TouchableOpacity
-            style={[s.submitBtn, (!email || !password) && s.submitBtnDisabled]}
+            style={[s.submitBtn, !canSubmit && s.submitBtnDisabled]}
             onPress={handleLogin}
-            disabled={loading || !email || !password}
+            disabled={!canSubmit}
             activeOpacity={0.85}
           >
             {loading
@@ -136,19 +201,15 @@ export default function LoginScreen({ navigation }) {
               : <Text style={s.submitText}>Se connecter</Text>
             }
           </TouchableOpacity>
-
-          {/* Hint */}
-          <View style={s.hintBox}>
-            <Text style={s.hintText}>
-              💡 Tapez "livreur" dans l'email pour accéder à l'espace livreur
-            </Text>
-          </View>
         </View>
 
         {/* ── Footer ── */}
         <View style={s.footer}>
           <Text style={s.footerText}>Pas encore de compte ?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Register')}
+            activeOpacity={0.7}
+          >
             <Text style={s.footerLink}> S'inscrire</Text>
           </TouchableOpacity>
         </View>
@@ -260,8 +321,24 @@ const s = StyleSheet.create({
   eyeIcon: { fontSize: 16 },
 
   // Forgot
-  forgotRow: { alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 },
+  forgotRow: { alignSelf: 'flex-end', marginBottom: 16, marginTop: -4 },
   forgotText: { fontSize: 13, color: CORAL, fontWeight: '600' },
+
+  // Error box
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  errorText: {
+    fontSize: 13,
+    color: ERROR_RED,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
 
   // Submit
   submitBtn: {
@@ -275,7 +352,6 @@ const s = StyleSheet.create({
     shadowOpacity: 0.20,
     shadowRadius: 12,
     elevation: 6,
-    marginBottom: 16,
   },
   submitBtnDisabled: { opacity: 0.45 },
   submitText: {
@@ -283,20 +359,6 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.4,
-  },
-
-  // Hint
-  hintBox: {
-    backgroundColor: LIGHT_BG,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: GRAY_DIV,
-  },
-  hintText: {
-    fontSize: 12,
-    color: GRAY_LABEL,
-    lineHeight: 18,
   },
 
   // Footer
