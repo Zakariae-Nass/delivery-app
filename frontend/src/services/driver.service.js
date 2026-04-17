@@ -1,24 +1,8 @@
 /**
- * Finds the best driver (highest rating) from a list of applicants.
- * @returns {object|null} The best driver or null if no applicants.
+ * driver.service.js
+ *
+ * Ce fichier ne contient plus d'exports.
+ * Les fonctions findBestDriver() et buildDriverNotification() ont été déplacées
+ * vers src/utils/driverUtils.js car elles relèvent de la logique métier
+ * (pas d'appel API ni de stockage), conformément à l'architecture 3 couches.
  */
-export function findBestDriver(applicants) {
-  if (!applicants?.length) return null;
-  return applicants.reduce((best, d) => (d.rating > best.rating ? d : best));
-}
-
-/**
- * Builds a notification object for driver-related events.
- */
-export function buildDriverNotification({ orderId, type, driver }) {
-  return {
-    id: Date.now().toString(),
-    orderId,
-    orderShortId: orderId.slice(-4),
-    type,
-    driverName: driver.name,
-    driverId: driver.id,
-    read: false,
-    createdAt: new Date(),
-  };
-}

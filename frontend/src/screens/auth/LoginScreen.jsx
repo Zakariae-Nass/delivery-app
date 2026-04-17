@@ -1,33 +1,9 @@
-/**
- * LoginScreen.jsx
- *
- * Écran de connexion — branché sur Redux et le backend réel.
- *
- * Flux :
- * 1. Utilisateur saisit email + password et appuie sur "Se connecter"
- * 2. dispatch(loginStart())  → Redux: loading = true
- * 3. authService.login()     → POST /auth/login + GET /auth/me
- * 4a. Succès → dispatch(loginSuccess({ user, token }))
- *             → Redux: isLoggedIn = true, user = {...}, loading = false
- *             → StackNavigator réagit automatiquement et affiche le bon écran
- * 4b. Échec  → dispatch(loginFailure("message"))
- *             → Redux: error = "message", loading = false
- *             → L'erreur s'affiche sous le formulaire
- *
- * Ce qui a changé par rapport à la version précédente :
- * → handleLogin : suppression du mock setTimeout, appel réel au service
- * → loading et error : lus depuis Redux (useSelector) au lieu d'un useState local
- * → clearError : dispatché quand l'utilisateur retape dans un champ
- * → Suppression du hint "tapez livreur dans l'email" (logique mock supprimée)
- */
-
 import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -35,73 +11,20 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
 
-import { loginStart, loginSuccess, loginFailure, clearError } from '../../redux/slices/authSlice';
-import { authService } from '../../services/auth.service';
+import useLogin from '../../hooks/useLogin';
+import { s, WHITE, CORAL, GRAY_LABEL } from './LoginScreen.styles';
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-const CORAL     = '#FF6B5B';
-const DARK_CARD = '#1C1C1E';
-const WHITE     = '#FFFFFF';
-const LIGHT_BG  = '#F5F5F7';
-const DARK_TEXT = '#1C1C1E';
-const GRAY_LABEL= '#8E8EA0';
-const GRAY_DIV  = '#ECECF0';
-const ERROR_RED = '#E63946';
-
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.07,
-  shadowRadius: 14,
-  elevation: 5,
-};
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function LoginScreen({ navigation }) {
-  const dispatch = useDispatch();
+  const { handleLogin, loading, error, handleClearError } = useLogin();
 
-  // Lecture de l'état depuis Redux
-  // → loading : contrôle le spinner et désactive le bouton
-  // → error   : message d'erreur affiché sous le formulaire
-  const { loading, error } = useSelector((state) => state.auth);
-
-  // État local pour les champs du formulaire (pas besoin de Redux pour ça)
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focused,      setFocused]      = useState(null);
 
-  // ── Handler principal ──────────────────────────────────────────────────────
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) return;
-
-    // 1. Signale à Redux qu'un appel réseau commence (spinner ON)
-    dispatch(loginStart());
-
-    try {
-      // 2. Appel au service : POST /auth/login → GET /auth/me
-      //    Retourne { token, user: { id, email, username, role, ... } }
-      const { token, user } = await authService.login({ email: email.trim(), password });
-
-      // 3. Succès : stocke user + token dans Redux
-      //    StackNavigator détecte isLoggedIn = true et reroute automatiquement
-      dispatch(loginSuccess({ token, user }));
-
-    } catch (err) {
-      // 4. Échec : extrait le message d'erreur du backend
-      //    NestJS retourne { message: "Invalid credentials", statusCode: 401 }
-      const message =
-        err?.response?.data?.message ||
-        'Impossible de se connecter. Vérifiez votre connexion.';
-      dispatch(loginFailure(message));
-    }
-  };
-
-  // Efface l'erreur dès que l'utilisateur retouche un champ
-  const handleEmailChange    = (v) => { setEmail(v);    if (error) dispatch(clearError()); };
-  const handlePasswordChange = (v) => { setPassword(v); if (error) dispatch(clearError()); };
+  const handleEmailChange    = (v) => { setEmail(v);    if (error) handleClearError(); };
+  const handlePasswordChange = (v) => { setPassword(v); if (error) handleClearError(); };
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0 && !loading;
 
@@ -182,7 +105,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={s.forgotText}>Mot de passe oublié ?</Text>
           </TouchableOpacity>
 
-          {/* ── Message d'erreur API ── */}
+          {/* Message d'erreur */}
           {error ? (
             <View style={s.errorBox}>
               <Text style={s.errorText}>⚠️ {error}</Text>
@@ -192,7 +115,7 @@ export default function LoginScreen({ navigation }) {
           {/* Bouton connexion */}
           <TouchableOpacity
             style={[s.submitBtn, !canSubmit && s.submitBtnDisabled]}
-            onPress={handleLogin}
+            onPress={() => handleLogin({ email: email.trim(), password })}
             disabled={!canSubmit}
             activeOpacity={0.85}
           >
@@ -219,154 +142,3 @@ export default function LoginScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: LIGHT_BG },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-
-  // Brand
-  brand: {
-    alignItems: 'center',
-    paddingTop: 48,
-    paddingBottom: 32,
-  },
-  logoWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 22,
-    backgroundColor: WHITE,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,107,91,0.20)',
-    ...CARD_SHADOW,
-  },
-  logoEmoji: { fontSize: 36 },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: DARK_TEXT,
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  tagline: {
-    fontSize: 13,
-    color: GRAY_LABEL,
-    fontWeight: '500',
-  },
-
-  // Card
-  card: {
-    backgroundColor: WHITE,
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-    ...CARD_SHADOW,
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: DARK_TEXT,
-    marginBottom: 6,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: GRAY_LABEL,
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-
-  // Fields
-  fieldGroup: { marginBottom: 16 },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: GRAY_LABEL,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    marginBottom: 8,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: LIGHT_BG,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: GRAY_DIV,
-    paddingHorizontal: 14,
-    height: 52,
-    gap: 8,
-  },
-  inputWrapFocused: {
-    borderColor: CORAL,
-    backgroundColor: 'rgba(255,107,91,0.04)',
-    shadowColor: CORAL,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  inputIcon: { fontSize: 16 },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: DARK_TEXT,
-  },
-  eyeIcon: { fontSize: 16 },
-
-  // Forgot
-  forgotRow: { alignSelf: 'flex-end', marginBottom: 16, marginTop: -4 },
-  forgotText: { fontSize: 13, color: CORAL, fontWeight: '600' },
-
-  // Error box
-  errorBox: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#FFCDD2',
-  },
-  errorText: {
-    fontSize: 13,
-    color: ERROR_RED,
-    fontWeight: '500',
-    lineHeight: 18,
-  },
-
-  // Submit
-  submitBtn: {
-    backgroundColor: DARK_CARD,
-    borderRadius: 999,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: DARK_CARD,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.20,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  submitBtnDisabled: { opacity: 0.45 },
-  submitText: {
-    color: WHITE,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-
-  // Footer
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: { fontSize: 14, color: GRAY_LABEL },
-  footerLink: { fontSize: 14, color: CORAL, fontWeight: '800' },
-});

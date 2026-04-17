@@ -6,6 +6,7 @@ import StepProgress from './components/history/StepProgress';
 import PhoneIllustration from './components/kyc/PhoneIllustration';
 import FormInput from './components/shared/FormInput';
 import UploadField from './components/kyc/UploadField';
+import { pickImageFromLibrary } from '../../services/media.service';
 
 export default function KycScreen({ navigation }) {
   const [step,          setStep]          = useState(1);
@@ -15,17 +16,8 @@ export default function KycScreen({ navigation }) {
   const [licenceImage,  setLicenceImage]  = useState(null);
 
   const pickImage = async (setter) => {
-    try {
-      const IP   = require('expo-image-picker');
-      const perm = await IP.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
-      const res  = await IP.launchImageLibraryAsync({
-        mediaTypes: IP.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.85,
-      });
-      if (!res.canceled && res.assets?.length) setter(res.assets[0].uri);
-    } catch {}
+    const uri = await pickImageFromLibrary({ aspect: undefined });
+    if (uri) setter(uri);
   };
 
   const handleBack = () => (step === 1 ? navigation.goBack() : setStep(1));

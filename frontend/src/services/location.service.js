@@ -48,20 +48,24 @@ export async function getCurrentAddress() {
  * @returns {Array<{ id: string, text: string, lat: number, lng: number, shortName: string }>}
  */
 export async function searchAddress(query) {
-  const url =
-    `${NOMINATIM_BASE}/search` +
-    `?q=${encodeURIComponent(query)}` +
-    `&format=json&limit=5&countrycodes=ma&addressdetails=1`;
-  const res  = await fetch(url, { headers: HEADERS });
-  const data = await res.json();
+  try {
+    const url =
+      `${NOMINATIM_BASE}/search` +
+      `?q=${encodeURIComponent(query)}` +
+      `&format=json&limit=5&countrycodes=ma&addressdetails=1`;
+    const res  = await fetch(url, { headers: HEADERS });
+    const data = await res.json();
 
-  if (data.length === 0) return [];
+    if (data.length === 0) return [];
 
-  return data.slice(0, 5).map((item, idx) => ({
-    id:        item.place_id?.toString() || String(idx),
-    text:      item.display_name,
-    lat:       parseFloat(item.lat),
-    lng:       parseFloat(item.lon),
-    shortName: buildShortName(item),
-  }));
+    return data.slice(0, 5).map((item, idx) => ({
+      id:        item.place_id?.toString() || String(idx),
+      text:      item.display_name,
+      lat:       parseFloat(item.lat),
+      lng:       parseFloat(item.lon),
+      shortName: buildShortName(item),
+    }));
+  } catch {
+    return [];
+  }
 }
