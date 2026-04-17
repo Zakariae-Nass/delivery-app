@@ -7,6 +7,7 @@ import AvatarSection from './components/profile/AvatarSection';
 import ProfileInfoCard from './components/profile/ProfileInfoCard';
 import KycConfirmModal from './components/profile/KycConfirmModal';
 import EditProfileSheet from './components/profile/EditProfileSheet';
+import { pickImageFromLibrary } from '../../services/media.service';
 
 export default function DriverProfileScreen({ navigation, route }) {
   const [driver, setDriver]         = useState(INITIAL_DRIVER);
@@ -51,22 +52,8 @@ export default function DriverProfileScreen({ navigation, route }) {
   };
 
   const handlePickImage = async () => {
-    try {
-      const ImagePicker = require('expo-image-picker');
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
-      });
-      if (!result.canceled && result.assets?.length) {
-        setAvatar(result.assets[0].uri);
-      }
-    } catch {
-      // expo-image-picker not yet installed — run: expo install expo-image-picker
-    }
+    const uri = await pickImageFromLibrary();
+    if (uri) setAvatar(uri);
   };
 
   const fields = VIEW_FIELDS(driver);

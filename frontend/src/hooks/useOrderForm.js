@@ -3,8 +3,8 @@ import { Animated } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { simulateDriversApplying } from '../utils/simulationData';
 import { VEHICLE_LIMITS, SIZE_ORDER } from '../config/constants';
-import { validateOrder, buildOrder } from '../services/order.service';
-import { buildDriverNotification } from '../services/driver.service';
+import { validateOrder, buildOrder } from '../utils/orderUtils';
+import { buildDriverNotification } from '../utils/driverUtils';
 import * as locationService from '../services/location.service';
 
 export default function useOrderForm(navigation) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { TIMER_TOTAL } from '../config/constants';
-import { findBestDriver, buildDriverNotification } from '../services/driver.service';
+import { findBestDriver, buildDriverNotification } from '../utils/driverUtils';
 
 export default function useDriverSelection(orderId, navigation) {
   const { orders, updateOrder, addNotification } = useApp();

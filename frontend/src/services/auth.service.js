@@ -33,20 +33,25 @@ export const authService = {
    * Retourne { token, user } pour que le appelant puisse dispatch(loginSuccess)
    */
   login: async ({ email, password }) => {
-    // Étape 1 — Authentification : récupère le JWT
-    const { data: loginData } = await apiClient.post('/auth/login', { email, password });
-    const token = loginData.access_token;
+    try {
+      // Étape 1 — Authentification : récupère le JWT
+      const { data: loginData } = await apiClient.post('/auth/login', { email, password });
+      const token = loginData.access_token;
 
-    // Étape 2 — Stockage sécurisé AVANT l'appel /auth/me
-    // L'intercepteur axios lit ce token pour Authorization: Bearer ...
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
+      // Étape 2 — Stockage sécurisé AVANT l'appel /auth/me
+      // L'intercepteur axios lit ce token pour Authorization: Bearer ...
+      await SecureStore.setItemAsync(TOKEN_KEY, token);
 
-    // Étape 3 — Récupération du profil complet (rôle, username, phone, etc.)
-    // L'intercepteur ajoute automatiquement le token stocké à l'étape 2
-    const { data: meData } = await apiClient.get('/auth/me');
-    // meData = { user: { id, username, email, role, phone, ... }, profileCompleteness, ... }
+      // Étape 3 — Récupération du profil complet (rôle, username, phone, etc.)
+      // L'intercepteur ajoute automatiquement le token stocké à l'étape 2
+      const { data: meData } = await apiClient.get('/auth/me');
+      // meData = { user: { id, username, email, role, phone, ... }, profileCompleteness, ... }
 
-    return { token, user: meData.user };
+      return { token, user: meData.user };
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Erreur de connexion';
+      throw new Error(Array.isArray(message) ? message.join(' ') : message);
+    }
   },
 
   /**
@@ -63,12 +68,17 @@ export const authService = {
    * Retourne { message, userId }
    */
   register: async ({ username, email, password, phone, role }) => {
-    const route = role === 'livreur'
-      ? '/auth/register/delivery'
-      : '/auth/register/agency';
+    try {
+      const route = role === 'livreur'
+        ? '/auth/register/delivery'
+        : '/auth/register/agency';
 
-    const { data } = await apiClient.post(route, { username, email, password, phone });
-    return data;
+      const { data } = await apiClient.post(route, { username, email, password, phone });
+      return data;
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Erreur inscription';
+      throw new Error(Array.isArray(message) ? message.join(' ') : message);
+    }
   },
 
   /**

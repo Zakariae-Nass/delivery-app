@@ -8,27 +8,26 @@ import MiniStat from './components/home/MiniStat';
 import WithdrawCard from './components/wallet/WithdrawCard';
 import TransactionRow from './components/history/TransactionRow';
 import HistorySheet from './components/history/HistorySheet';
+import useWallet from '../../hooks/useWallet';
 
 export default function LivreurWalletScreen({ navigation }) {
-  const [solde,          setSolde]          = useState(85.00);
+  const {
+    solde,
+    withdrawAmount,
+    setWithdrawAmount,
+    withdrawSent,
+    setWithdrawSent,
+    handleWithdrawSubmit,
+  } = useWallet(85.00);
+
   const [soldeBloque]                        = useState(0);
   const [drawerOpen,     setDrawerOpen]     = useState(false);
   const [showWithdraw,   setShowWithdraw]   = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawSent,   setWithdrawSent]   = useState(false);
   const [historyOpen,    setHistoryOpen]    = useState(false);
   const [historyFilter,  setHistoryFilter]  = useState('all');
 
   const openHistory  = () => setHistoryOpen(true);
   const closeHistory = () => setHistoryOpen(false);
-
-  const handleWithdrawSubmit = () => {
-    const amount = parseFloat(withdrawAmount.replace(',', '.'));
-    if (!amount || amount <= 0 || amount > solde) return;
-    setSolde(prev => Math.max(0, prev - amount));
-    setWithdrawSent(true);
-    setWithdrawAmount('');
-  };
 
   const handleRetirer = () => {
     setWithdrawSent(false);

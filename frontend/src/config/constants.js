@@ -1,5 +1,5 @@
 // ⚠️ Port corrigé : le backend NestJS tourne sur 5000 (voir backend/src/main.ts)
-export const API_URL = 'http://192.168.1.10:5000';
+export const API_URL = 'http://10.235.0.251:5000';
 // Mets l'IP locale de ton PC (pas localhost)
 // car le téléphone physique ne connaît pas "localhost" http://192.168.X.X:3000
 // Tape "ipconfig" dans le terminal pour trouver ton IP

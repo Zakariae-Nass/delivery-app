@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/auth.service';
 
 export const useAuth = () => {
@@ -11,16 +10,11 @@ export const useAuth = () => {
       setLoading(true);
       setError(null);
 
-      const response = await authService.login(data);
-
-      // Sauvegarde token et user en local
-      await AsyncStorage.setItem('token', response.access_token);
-      await AsyncStorage.setItem('user', JSON.stringify(response.user));
-
-      onSuccess(response.user.role);
+      // Le service gère le stockage du token (SecureStore) en interne.
+      const { user } = await authService.login(data);
+      onSuccess(user.role);
     } catch (err) {
-      const message = err.response?.data?.message || 'Erreur de connexion';
-      setError(message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -34,8 +28,7 @@ export const useAuth = () => {
       await authService.register(data);
       onSuccess();
     } catch (err) {
-      const message = err.response?.data?.message || 'Erreur inscription';
-      setError(message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
