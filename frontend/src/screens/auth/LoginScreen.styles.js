@@ -99,15 +99,6 @@ export const s = StyleSheet.create({
     height: 52,
     gap: 8,
   },
-  inputWrapFocused: {
-    borderColor: CORAL,
-    backgroundColor: 'rgba(255,107,91,0.04)',
-    shadowColor: CORAL,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 2,
-  },
   inputIconImg: { marginRight: 4 },
   input: {
     flex: 1,

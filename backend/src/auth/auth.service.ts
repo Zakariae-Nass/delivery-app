@@ -14,6 +14,7 @@ import { Admin } from '../users/entities/admin.entity';
 import { Agency } from '../users/entities/agency.entity';
 import { Delivery } from '../users/entities/delivery.entity';
 import { User } from '../users/entities/user.entity';
+import { WalletService } from '../wallet/wallet.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterAdminDto } from './dto/register-admin.dto';
 import { RegisterAgencyDto } from './dto/register-agency.dto';
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly agencyRepository: Repository<Agency>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly walletService: WalletService,
   ) {}
 
   async registerDelivery(dto: RegisterDeliveryDto) {
@@ -44,6 +46,7 @@ export class AuthService {
       password: hashed,
     });
     const saved = await this.deliveryRepository.save(user);
+    await this.walletService.getOrCreateWallet(saved.id);
 
     return { message: 'Delivery user registered successfully', userId: saved.id };
   }
@@ -72,6 +75,7 @@ export class AuthService {
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = this.agencyRepository.create({ ...dto, password: hashed });
     const saved = await this.agencyRepository.save(user);
+    await this.walletService.getOrCreateWallet(saved.id);
 
     return { message: 'Agency user registered successfully', userId: saved.id };
   }

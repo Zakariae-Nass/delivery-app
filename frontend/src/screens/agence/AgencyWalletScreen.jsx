@@ -59,6 +59,10 @@ export default function AgencyWalletScreen({ navigation }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawing,    setWithdrawing]    = useState(false);
   const [withdrawError,  setWithdrawError]  = useState('');
+  const [showDeposit,    setShowDeposit]    = useState(false);
+  const [depositAmount,  setDepositAmount]  = useState('');
+  const [depositing,     setDepositing]     = useState(false);
+  const [depositError,   setDepositError]   = useState('');
 
   const fetchWallet = useCallback(async () => {
     try {
@@ -76,6 +80,24 @@ export default function AgencyWalletScreen({ navigation }) {
   }, [dispatch]);
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);
+
+  const handleDeposit = async () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount <= 0) { setDepositError('Montant invalide'); return; }
+    setDepositing(true);
+    setDepositError('');
+    try {
+      await apiClient.post('/wallet/deposit', { montant: amount });
+      Alert.alert('Succès', 'Solde rechargé avec succès');
+      setDepositAmount('');
+      setShowDeposit(false);
+      fetchWallet();
+    } catch (e) {
+      setDepositError(e?.response?.data?.message || 'Erreur lors du rechargement');
+    } finally {
+      setDepositing(false);
+    }
+  };
 
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
@@ -125,14 +147,49 @@ export default function AgencyWalletScreen({ navigation }) {
               {Number(solde_bloque) > 0 && (
                 <Text style={st.blockedAmount}>Bloqué: {Number(solde_bloque).toFixed(2)} MAD</Text>
               )}
-              <TouchableOpacity
-                style={st.withdrawBtn}
-                onPress={() => setShowWithdraw((v) => !v)}
-              >
-                <Ionicons name="arrow-up-circle-outline" size={18} color="#fff" />
-                <Text style={st.withdrawBtnText}>Retirer des fonds</Text>
-              </TouchableOpacity>
+              <View style={st.actionRow}>
+                <TouchableOpacity
+                  style={[st.actionBtn, { backgroundColor: SUCCESS }]}
+                  onPress={() => { setShowDeposit((v) => !v); setShowWithdraw(false); }}
+                >
+                  <Ionicons name="arrow-down-circle-outline" size={18} color="#fff" />
+                  <Text style={st.actionBtnText}>Recharger</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[st.actionBtn, { backgroundColor: CORAL }]}
+                  onPress={() => { setShowWithdraw((v) => !v); setShowDeposit(false); }}
+                >
+                  <Ionicons name="arrow-up-circle-outline" size={18} color="#fff" />
+                  <Text style={st.actionBtnText}>Retirer</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+
+            {/* Deposit form */}
+            {showDeposit && (
+              <View style={st.withdrawForm}>
+                <Text style={st.formLabel}>Montant à ajouter (MAD)</Text>
+                <TextInput
+                  style={[st.formInput, depositError && st.formInputError]}
+                  value={depositAmount}
+                  onChangeText={(v) => { setDepositAmount(v.replace(/[^0-9.]/g, '')); setDepositError(''); }}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor={GRAY}
+                />
+                {depositError ? <Text style={st.errorText}>{depositError}</Text> : null}
+                <TouchableOpacity
+                  style={[st.confirmBtn, { backgroundColor: SUCCESS }, depositing && { opacity: 0.6 }]}
+                  onPress={handleDeposit}
+                  disabled={depositing}
+                >
+                  {depositing
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={st.confirmBtnText}>Confirmer le rechargement</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Withdraw form */}
             {showWithdraw && (
@@ -186,8 +243,9 @@ const st = StyleSheet.create({
   balanceLabel:  { fontSize: 13, color: GRAY, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5 },
   balanceAmount: { fontSize: 38, fontWeight: '900', color: '#fff' },
   blockedAmount: { fontSize: 13, color: '#F59E0B', fontWeight: '500' },
-  withdrawBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CORAL, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 12 },
-  withdrawBtnText:{ color: '#fff', fontWeight: '700', fontSize: 15 },
+  actionRow:     { flexDirection: 'row', gap: 10, marginTop: 12 },
+  actionBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, paddingVertical: 12 },
+  actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   withdrawForm:  { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 16, padding: 16, marginBottom: 8, gap: 10 },
   formLabel:     { fontSize: 12, color: GRAY, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   formInput:     { backgroundColor: LIGHT, borderRadius: 12, padding: 14, fontSize: 18, fontWeight: '700', borderWidth: 1.5, borderColor: '#ECECF0' },

@@ -108,7 +108,7 @@ export default function useOrderForm(navigation) {
       const { data } = await apiClient.post('/commandes', payload);
       dispatch(addCommande(data));
       Alert.alert('Commande créée', `Commande ${data.numero} créée avec succès`, [
-        { text: 'OK', onPress: () => navigation.navigate('OrdersList') },
+        { text: 'OK', onPress: () => navigation.replace('OrdersList') },
       ]);
     } catch (e) {
       const msg = e?.response?.data?.message;

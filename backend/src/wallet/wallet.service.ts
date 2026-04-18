@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { WithdrawDto } from './dto/withdraw.dto';
 import { Transaction } from './entities/transaction.entity';
@@ -21,23 +21,53 @@ export class WalletService {
   ) {}
 
   async getOrCreateWallet(userId: number): Promise<Wallet> {
-    let wallet = await this.walletRepo.findOne({
-      where: { user: { id: userId } },
+  let wallet = await this.walletRepo.findOne({
+    where: { user: { id: userId } },
+  });
+
+  if (wallet) return wallet;
+
+  try {
+    wallet = this.walletRepo.create({
+      user: { id: userId } as User,
+      solde: 0,
+      solde_bloque: 0,
     });
-    if (!wallet) {
-      wallet = this.walletRepo.create({
-        user: { id: userId } as User,
-        solde: 0,
-        solde_bloque: 0,
-      });
-      wallet = await this.walletRepo.save(wallet);
-    }
+
+    wallet = await this.walletRepo.save(wallet);
     return wallet;
+  } catch (e) {
+    if (e?.code === '23505') {
+      const existing = await this.walletRepo.findOne({
+        where: { user: { id: userId } },
+      });
+
+      if (!existing) {
+        throw new Error('Wallet should exist but was not found');
+      }
+
+      return existing; // ✅ garanti non-null
+    }
+
+    throw e;
+  }
+}
+
+  private async lockWalletByUserId(
+    manager: EntityManager,
+    userId: number,
+  ): Promise<Wallet | null> {
+    // Use query builder to lock only the wallets table, avoiding LEFT JOIN
+    // which causes "FOR UPDATE cannot be applied to the nullable side of an outer join"
+    return manager
+      .createQueryBuilder(Wallet, 'wallet')
+      .where('wallet.userId = :userId', { userId })
+      .setLock('pessimistic_write')
+      .getOne();
   }
 
   async getWallet(userId: number) {
-    const wallet = await this.getOrCreateWallet(userId);
-    return wallet;
+    return this.getOrCreateWallet(userId);
   }
 
   async getTransactions(userId: number) {
@@ -48,12 +78,28 @@ export class WalletService {
     });
   }
 
+  async deposit(userId: number, amount: number) {
+    if (!amount || amount <= 0) {
+      throw new BadRequestException('Le montant doit être supérieur à 0');
+    }
+    const wallet = await this.getOrCreateWallet(userId);
+    wallet.solde = Number(wallet.solde) + amount;
+    await this.walletRepo.save(wallet);
+
+    const tx = this.transactionRepo.create({
+      wallet,
+      type: 'credit',
+      montant: amount,
+      description: 'Rechargement du solde',
+    });
+    await this.transactionRepo.save(tx);
+
+    return { message: 'Solde rechargé avec succès', solde: wallet.solde };
+  }
+
   async withdraw(userId: number, dto: WithdrawDto) {
     return this.dataSource.transaction(async (manager) => {
-      const wallet = await manager.findOne(Wallet, {
-        where: { user: { id: userId } },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const wallet = await this.lockWalletByUserId(manager, userId);
       if (!wallet) throw new NotFoundException('Wallet not found');
 
       const available = Number(wallet.solde);
@@ -81,10 +127,7 @@ export class WalletService {
 
   async blockAmount(userId: number, amount: number, description: string) {
     return this.dataSource.transaction(async (manager) => {
-      const wallet = await manager.findOne(Wallet, {
-        where: { user: { id: userId } },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const wallet = await this.lockWalletByUserId(manager, userId);
       if (!wallet) throw new NotFoundException('Wallet not found');
 
       const available = Number(wallet.solde);
@@ -108,10 +151,7 @@ export class WalletService {
 
   async unblockAmount(userId: number, amount: number, description: string) {
     return this.dataSource.transaction(async (manager) => {
-      const wallet = await manager.findOne(Wallet, {
-        where: { user: { id: userId } },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const wallet = await this.lockWalletByUserId(manager, userId);
       if (!wallet) throw new NotFoundException('Wallet not found');
 
       wallet.solde_bloque = Math.max(0, Number(wallet.solde_bloque) - amount);
@@ -135,14 +175,8 @@ export class WalletService {
     commandeId: number,
   ) {
     return this.dataSource.transaction(async (manager) => {
-      const agenceWallet = await manager.findOne(Wallet, {
-        where: { user: { id: agenceUserId } },
-        lock: { mode: 'pessimistic_write' },
-      });
-      const livreurWallet = await manager.findOne(Wallet, {
-        where: { user: { id: livreurUserId } },
-        lock: { mode: 'pessimistic_write' },
-      });
+      const agenceWallet = await this.lockWalletByUserId(manager, agenceUserId);
+      const livreurWallet = await this.lockWalletByUserId(manager, livreurUserId);
 
       if (!agenceWallet) throw new NotFoundException('Agence wallet not found');
       if (!livreurWallet) throw new NotFoundException('Livreur wallet not found');

@@ -3,8 +3,6 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -110,13 +108,10 @@ export default function RegisterScreen({ navigation }) {
   return (
     <SafeAreaView style={st.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={LIGHT} />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
         <ScrollView
           contentContainerStyle={st.scroll}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="none"
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
@@ -299,7 +294,6 @@ export default function RegisterScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

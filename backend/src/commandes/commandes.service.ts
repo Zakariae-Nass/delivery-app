@@ -105,6 +105,16 @@ export class CommandesService {
     return commande;
   }
 
+  async findActiveForLivreur(livreurUserId: number): Promise<Commande | null> {
+    return this.commandeRepo.findOne({
+      where: [
+        { livreur: { id: livreurUserId }, status: 'en_cours_pickup' },
+        { livreur: { id: livreurUserId }, status: 'colis_recupere' },
+      ],
+      relations: ['agence', 'livreur'],
+    });
+  }
+
   async findMyApplications(livreurId: number): Promise<Commande[]> {
     const key = `livreur_applications:${livreurId}`;
     const commandeIds = await this.redis.lrange(key, 0, -1);
@@ -150,6 +160,16 @@ export class CommandesService {
     }
     if (livreur.status !== 'online') {
       throw new ForbiddenException('Vous devez être en ligne pour postuler');
+    }
+
+    const activeCommande = await this.commandeRepo.findOne({
+      where: [
+        { livreur: { id: livreurUserId }, status: 'en_cours_pickup' },
+        { livreur: { id: livreurUserId }, status: 'colis_recupere' },
+      ],
+    });
+    if (activeCommande) {
+      throw new BadRequestException('Vous avez déjà une livraison en cours');
     }
 
     const appKey = `applications:${commandeId}`;
@@ -274,7 +294,7 @@ export class CommandesService {
 
     if (dto.status === 'colis_recupere') {
       const otp = this.generateOtp();
-      const expires = new Date(Date.now() + 10 * 60 * 1000);
+      const expires = new Date(Date.now() + 30 * 60 * 1000);
       commande.otpCode = otp;
       commande.otpExpiresAt = expires;
       // In production: send SMS via SMS_API_KEY
@@ -330,7 +350,7 @@ export class CommandesService {
     const now = new Date();
     if (now > commande.otpExpiresAt) {
       const newOtp = this.generateOtp();
-      const expires = new Date(Date.now() + 10 * 60 * 1000);
+      const expires = new Date(Date.now() + 30 * 60 * 1000);
       commande.otpCode = newOtp;
       commande.otpExpiresAt = expires;
       await this.commandeRepo.save(commande);

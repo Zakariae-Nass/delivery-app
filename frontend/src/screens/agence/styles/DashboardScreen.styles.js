@@ -1,9 +1,16 @@
 import { StyleSheet } from 'react-native';
-import { Colors, Spacing, Radius, FontSize } from '../../../config/theme';
+import { Spacing, Radius, FontSize } from '../../../config/theme';
+
+const WHITE      = '#FFFFFF';
+const LIGHT_BG   = '#F5F5F7';
+const DARK_TEXT  = '#1C1C1E';
+const GRAY_LABEL = '#8E8EA0';
+const GRAY_DIV   = '#ECECF0';
+const CORAL      = '#FF6B35';
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.bgDark },
-  container: { flex: 1, backgroundColor: Colors.bgDark },
+  safeArea: { flex: 1, backgroundColor: LIGHT_BG },
+  container: { flex: 1, backgroundColor: LIGHT_BG },
   scrollContent: { paddingBottom: 32 },
 
   topBar: {
@@ -13,12 +20,21 @@ export const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
+    backgroundColor: WHITE,
   },
-  greeting: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  agenceName: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.textPrimary },
+  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  menuBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    backgroundColor: LIGHT_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  greeting: { fontSize: FontSize.sm, color: GRAY_LABEL },
+  agenceName: { fontSize: FontSize.xl, fontWeight: '800', color: DARK_TEXT },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   notifBtn: { position: 'relative', padding: Spacing.xs },
-  notifIcon: { fontSize: 22 },
   notifBadge: {
     position: 'absolute',
     top: 6,
@@ -26,40 +42,28 @@ export const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.error,
+    backgroundColor: '#EF4444',
   },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primaryGhost,
-    borderWidth: 1.5,
-    borderColor: Colors.borderActive,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: { color: Colors.primary, fontWeight: '700', fontSize: FontSize.sm },
 
-  statsScroll: { marginBottom: Spacing.md },
+  statsScroll: { marginBottom: Spacing.md, marginTop: Spacing.md },
   statsContent: { paddingHorizontal: Spacing.lg, gap: 10 },
 
   newCommandeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: CORAL,
     marginHorizontal: Spacing.lg,
     borderRadius: Radius.md,
     height: 52,
     gap: 8,
     marginBottom: Spacing.lg,
-    shadowColor: Colors.primary,
+    shadowColor: CORAL,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
   },
-  newCommandeIcon: { color: '#fff', fontSize: 22, fontWeight: '300' },
   newCommandeText: { color: '#fff', fontSize: FontSize.lg, fontWeight: '700' },
 
   sectionHeader: {
@@ -69,18 +73,18 @@ export const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
   },
-  voirTout: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
-  sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.textPrimary },
+  voirTout: { fontSize: FontSize.sm, color: CORAL, fontWeight: '600' },
+  sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: DARK_TEXT },
   sectionCount: {
-    backgroundColor: Colors.bgElevated,
-    color: Colors.textSecondary,
+    backgroundColor: LIGHT_BG,
+    color: GRAY_LABEL,
     fontSize: FontSize.xs,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: GRAY_DIV,
   },
 
   filtersScroll: { marginBottom: Spacing.md },
@@ -89,21 +93,20 @@ export const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.full,
-    backgroundColor: Colors.bgCard,
+    backgroundColor: WHITE,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: GRAY_DIV,
   },
   filterChipActive: {
-    backgroundColor: Colors.primaryGhost,
-    borderColor: Colors.borderActive,
+    backgroundColor: 'rgba(255,107,53,0.1)',
+    borderColor: 'rgba(255,107,53,0.5)',
   },
-  filterText: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '600' },
-  filterTextActive: { color: Colors.primary },
+  filterText: { fontSize: FontSize.sm, color: GRAY_LABEL, fontWeight: '600' },
+  filterTextActive: { color: CORAL },
 
   commandesList: { paddingHorizontal: Spacing.lg, gap: 12 },
 
   emptyState: { alignItems: 'center', paddingVertical: 40 },
-  emptyIcon:  { fontSize: 52, marginBottom: 12 },
-  emptyText:  { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: 12 },
-  emptyLink:  { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '700' },
+  emptyText:  { fontSize: FontSize.sm, color: GRAY_LABEL, marginBottom: 12 },
+  emptyLink:  { fontSize: FontSize.sm, color: CORAL, fontWeight: '700' },
 });

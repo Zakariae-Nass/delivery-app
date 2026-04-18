@@ -59,6 +59,11 @@ export class CommandesController {
     return this.commandesService.findMyApplications(user.userId);
   }
 
+  @Get('my-active')
+  findMyActive(@GetUser() user: JwtUser) {
+    return this.commandesService.findActiveForLivreur(user.userId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.commandesService.findOne(id);

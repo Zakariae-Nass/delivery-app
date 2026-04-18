@@ -1,5 +1,5 @@
-export const API_URL = 'http://192.168.12.44:5000';
-export const WS_URL = 'http://192.168.12.44:5000';
+export const API_URL = 'http://172.17.36.34:5000';
+export const WS_URL = 'http://172.17.36.34:5000';
 
 export const STORAGE_KEYS = {
   TOKEN: 'token',

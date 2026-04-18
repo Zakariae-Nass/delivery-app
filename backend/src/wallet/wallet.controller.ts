@@ -25,6 +25,11 @@ export class WalletController {
     return this.walletService.getTransactions(user.userId);
   }
 
+  @Post('deposit')
+  deposit(@GetUser() user: JwtUser, @Body() body: { montant: number }) {
+    return this.walletService.deposit(user.userId, body.montant);
+  }
+
   @Post('withdraw')
   withdraw(@GetUser() user: JwtUser, @Body() dto: WithdrawDto) {
     return this.walletService.withdraw(user.userId, dto);
