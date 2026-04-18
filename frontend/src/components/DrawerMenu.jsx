@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useEffect } from 'react';
 import {
   View,
@@ -11,13 +12,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
+import { logout } from '../redux/slices/authSlice';
+import { authService } from '../services/auth.service';
+import { notificationsSocket } from '../services/notifications.socket';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
 const CORAL     = '#FF6B5B';
-const DARK_CARD = '#1C1C1E';
 const WHITE     = '#FFFFFF';
 const LIGHT_BG  = '#F5F5F7';
 const DARK_TEXT = '#1C1C1E';
@@ -35,53 +38,36 @@ const CARD_SHADOW = {
 };
 
 const MENU_ITEMS = [
-  { key: 'LivreurHome',     label: 'Dashboard',        icon: '🏠' },
-  { key: 'MesCandidatures', label: 'Mes Candidatures', icon: '📋' },
-  { key: 'Wallet',          label: 'Mon Wallet',       icon: '💰' },
-  { key: 'Screen3',         label: 'Screen 3',         icon: '🗂️' },
-  { key: 'Screen4',         label: 'Screen 4',         icon: '⚙️' },
+  { key: 'LivreurHome',     label: 'Dashboard',        icon: 'home-outline' },
+  { key: 'MesCandidatures', label: 'Mes Candidatures', icon: 'list-outline' },
+  { key: 'Wallet',          label: 'Mon Wallet',       icon: 'wallet-outline' },
+  { key: 'DriverProfile',   label: 'Mon Profil',       icon: 'person-outline' },
+  { key: 'KycVerification', label: 'Vérification KYC', icon: 'shield-checkmark-outline' },
 ];
 
-// ─── DrawerMenu ───────────────────────────────────────────────────────────────
 export default function DrawerMenu({
   visible,
   onClose,
   navigation,
   activeScreen = 'LivreurHome',
   avatar       = null,
-  driverName   = 'Youssef Benali',
-  driverEmail  = 'youssef@delivtrack.ma',
+  driverName   = '',
+  driverEmail  = '',
 }) {
+  const dispatch = useDispatch();
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 65,
-          friction: 11,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 65, friction: 11, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -DRAWER_WIDTH,
-          duration: 260,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }),
+        Animated.timing(slideAnim, { toValue: -DRAWER_WIDTH, duration: 260, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
       ]).start();
     }
   }, [visible]);
@@ -91,17 +77,16 @@ export default function DrawerMenu({
     setTimeout(() => navigation.navigate(screen), 60);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     onClose();
-    setTimeout(() => navigation.replace('Login'), 60);
+    notificationsSocket.disconnect();
+    await authService.logout();
+    dispatch(logout());
   };
 
   const initials = driverName
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+    ? driverName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
 
   if (!visible) return null;
 
@@ -114,16 +99,13 @@ export default function DrawerMenu({
       onRequestClose={onClose}
     >
       <View style={d.root}>
-        {/* Dark overlay */}
         <Animated.View style={[d.overlay, { opacity: fadeAnim }]}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         </Animated.View>
 
-        {/* Drawer panel */}
         <Animated.View style={[d.drawer, { transform: [{ translateX: slideAnim }] }]}>
           <SafeAreaView edges={['top', 'bottom']} style={d.drawerInner}>
 
-            {/* ── Drawer Header ── */}
             <View style={d.drawerHeader}>
               {avatar ? (
                 <Image source={{ uri: avatar }} style={d.avatar} />
@@ -133,22 +115,20 @@ export default function DrawerMenu({
                 </View>
               )}
               <View style={d.userInfo}>
-                <Text style={d.userName} numberOfLines={1}>{driverName}</Text>
+                <Text style={d.userName} numberOfLines={1}>{driverName || 'Utilisateur'}</Text>
                 <Text style={d.userEmail} numberOfLines={1}>{driverEmail}</Text>
                 <TouchableOpacity
                   style={d.profilePill}
                   onPress={() => handleNavigate('DriverProfile')}
                   activeOpacity={0.8}
                 >
-                  <Text style={d.profilePillText}>Profile</Text>
+                  <Text style={d.profilePillText}>Profil</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Divider */}
             <View style={d.headerDivider} />
 
-            {/* ── Menu Items ── */}
             <ScrollView style={d.menuScroll} showsVerticalScrollIndicator={false}>
               {MENU_ITEMS.map((item, i) => {
                 const isActive = activeScreen === item.key;
@@ -160,7 +140,7 @@ export default function DrawerMenu({
                       activeOpacity={0.7}
                     >
                       <View style={[d.menuIconWrap, isActive && d.menuIconWrapActive]}>
-                        <Text style={d.menuIcon}>{item.icon}</Text>
+                        <Ionicons name={item.icon} size={18} color={isActive ? CORAL : GRAY_LABEL} />
                       </View>
                       <Text style={[d.menuLabel, isActive && d.menuLabelActive]}>
                         {item.label}
@@ -173,14 +153,13 @@ export default function DrawerMenu({
               })}
             </ScrollView>
 
-            {/* ── Log Out ── */}
             <View style={d.logoutSection}>
               <View style={d.headerDivider} />
               <TouchableOpacity style={d.logoutItem} onPress={handleLogout} activeOpacity={0.7}>
                 <View style={d.logoutIconWrap}>
-                  <Text style={d.menuIcon}>🚪</Text>
+                  <Ionicons name="log-out-outline" size={18} color={RED} />
                 </View>
-                <Text style={d.logoutLabel}>Log Out</Text>
+                <Text style={d.logoutLabel}>Déconnexion</Text>
               </TouchableOpacity>
             </View>
 
@@ -191,14 +170,9 @@ export default function DrawerMenu({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const d = StyleSheet.create({
   root:    { flex: 1 },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   drawer: {
     position: 'absolute',
     top: 0,
@@ -212,8 +186,6 @@ const d = StyleSheet.create({
     overflow: 'hidden',
   },
   drawerInner: { flex: 1 },
-
-  // Header
   drawerHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -221,11 +193,7 @@ const d = StyleSheet.create({
     paddingTop: 24,
     gap: 14,
   },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 16,
-  },
+  avatar: { width: 70, height: 70, borderRadius: 16 },
   avatarPlaceholder: {
     width: 70,
     height: 70,
@@ -235,11 +203,7 @@ const d = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 0,
   },
-  avatarInitials: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: GRAY_LABEL,
-  },
+  avatarInitials: { fontSize: 22, fontWeight: '800', color: GRAY_LABEL },
   userInfo:  { flex: 1, paddingTop: 4 },
   userName:  { fontSize: 16, fontWeight: '800', color: DARK_TEXT, marginBottom: 3 },
   userEmail: { fontSize: 12, color: GRAY_LABEL, marginBottom: 12 },
@@ -252,15 +216,8 @@ const d = StyleSheet.create({
     borderWidth: 1,
     borderColor: GRAY_DIV,
   },
-  profilePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: DARK_TEXT,
-  },
-
-  headerDivider: { height: 1, backgroundColor: GRAY_DIV, marginHorizontal: 0 },
-
-  // Menu
+  profilePillText: { fontSize: 12, fontWeight: '700', color: DARK_TEXT },
+  headerDivider: { height: 1, backgroundColor: GRAY_DIV },
   menuScroll: { flex: 1 },
   menuItem: {
     flexDirection: 'row',
@@ -270,9 +227,7 @@ const d = StyleSheet.create({
     gap: 14,
     position: 'relative',
   },
-  menuItemActive: {
-    backgroundColor: 'rgba(255,107,91,0.06)',
-  },
+  menuItemActive: { backgroundColor: 'rgba(255,107,91,0.06)' },
   menuIconWrap: {
     width: 38,
     height: 38,
@@ -281,10 +236,7 @@ const d = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuIconWrapActive: {
-    backgroundColor: 'rgba(255,107,91,0.12)',
-  },
-  menuIcon:  { fontSize: 17 },
+  menuIconWrapActive: { backgroundColor: 'rgba(255,107,91,0.12)' },
   menuLabel: { fontSize: 15, fontWeight: '600', color: DARK_TEXT, flex: 1 },
   menuLabelActive: { color: CORAL, fontWeight: '700' },
   activeBar: {
@@ -297,8 +249,6 @@ const d = StyleSheet.create({
     backgroundColor: CORAL,
   },
   itemDivider: { height: 1, backgroundColor: GRAY_DIV, marginLeft: 72 },
-
-  // Logout
   logoutSection: { paddingBottom: 8 },
   logoutItem: {
     flexDirection: 'row',

@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,9 +23,32 @@ export default function LoginScreen({ navigation }) {
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [focused,      setFocused]      = useState(null);
+  const [fieldErrors,  setFieldErrors]  = useState({});
 
-  const handleEmailChange    = (v) => { setEmail(v);    if (error) handleClearError(); };
-  const handlePasswordChange = (v) => { setPassword(v); if (error) handleClearError(); };
+  const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  const handleEmailChange = useCallback((v) => {
+    setEmail(v);
+    if (error) handleClearError();
+    setFieldErrors((e) => ({ ...e, email: null }));
+  }, [error, handleClearError]);
+
+  const handlePasswordChange = useCallback((v) => {
+    setPassword(v);
+    if (error) handleClearError();
+    setFieldErrors((e) => ({ ...e, password: null }));
+  }, [error, handleClearError]);
+
+  const handleSubmit = () => {
+    const errs = {};
+    if (!validateEmail(email.trim())) errs.email = 'Adresse email invalide';
+    if (password.length < 8) errs.password = 'Minimum 8 caractères';
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      return;
+    }
+    handleLogin({ email: email.trim(), password });
+  };
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0 && !loading;
 
@@ -42,16 +66,14 @@ export default function LoginScreen({ navigation }) {
       >
         <SafeAreaView edges={['top']} />
 
-        {/* ── Logo / Brand ── */}
         <View style={s.brand}>
           <View style={s.logoWrap}>
-            <Text style={s.logoEmoji}>🚚</Text>
+            <Ionicons name="car-sport" size={40} color={CORAL} />
           </View>
           <Text style={s.appName}>DelivTrack</Text>
           <Text style={s.tagline}>La livraison intelligente au Maroc</Text>
         </View>
 
-        {/* ── Form Card ── */}
         <View style={s.card}>
           <Text style={s.cardTitle}>Connexion</Text>
           <Text style={s.cardSubtitle}>Bienvenue ! Connectez-vous à votre compte</Text>
@@ -60,7 +82,7 @@ export default function LoginScreen({ navigation }) {
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>Email</Text>
             <View style={[s.inputWrap, focused === 'email' && s.inputWrapFocused]}>
-              <Text style={s.inputIcon}>✉️</Text>
+              <Ionicons name="mail-outline" size={20} color={GRAY_LABEL} style={s.inputIconImg} />
               <TextInput
                 style={s.input}
                 placeholder="votre@email.com"
@@ -74,13 +96,16 @@ export default function LoginScreen({ navigation }) {
                 onBlur={() => setFocused(null)}
               />
             </View>
+            {fieldErrors.email ? (
+              <Text style={s.fieldError}>{fieldErrors.email}</Text>
+            ) : null}
           </View>
 
           {/* Password */}
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>Mot de passe</Text>
             <View style={[s.inputWrap, focused === 'password' && s.inputWrapFocused]}>
-              <Text style={s.inputIcon}>🔒</Text>
+              <Ionicons name="lock-closed-outline" size={20} color={GRAY_LABEL} style={s.inputIconImg} />
               <TextInput
                 style={s.input}
                 placeholder="••••••••"
@@ -95,27 +120,32 @@ export default function LoginScreen({ navigation }) {
                 onPress={() => setShowPassword(v => !v)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={s.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={GRAY_LABEL}
+                />
               </TouchableOpacity>
             </View>
+            {fieldErrors.password ? (
+              <Text style={s.fieldError}>{fieldErrors.password}</Text>
+            ) : null}
           </View>
 
-          {/* Mot de passe oublié */}
           <TouchableOpacity style={s.forgotRow} activeOpacity={0.7}>
             <Text style={s.forgotText}>Mot de passe oublié ?</Text>
           </TouchableOpacity>
 
-          {/* Message d'erreur */}
           {error ? (
             <View style={s.errorBox}>
-              <Text style={s.errorText}>⚠️ {error}</Text>
+              <Ionicons name="warning-outline" size={16} color="#E63946" />
+              <Text style={s.errorText}> {error}</Text>
             </View>
           ) : null}
 
-          {/* Bouton connexion */}
           <TouchableOpacity
             style={[s.submitBtn, !canSubmit && s.submitBtnDisabled]}
-            onPress={() => handleLogin({ email: email.trim(), password })}
+            onPress={handleSubmit}
             disabled={!canSubmit}
             activeOpacity={0.85}
           >
@@ -126,7 +156,6 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* ── Footer ── */}
         <View style={s.footer}>
           <Text style={s.footerText}>Pas encore de compte ?</Text>
           <TouchableOpacity
