@@ -7,6 +7,7 @@ import { Admin } from '../users/entities/admin.entity';
 import { Agency } from '../users/entities/agency.entity';
 import { Delivery } from '../users/entities/delivery.entity';
 import { User } from '../users/entities/user.entity';
+import { WalletModule } from '../wallet/wallet.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -15,6 +16,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   imports: [
     PassportModule,
     ConfigModule,
+    WalletModule,
     TypeOrmModule.forFeature([User, Delivery, Admin, Agency]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

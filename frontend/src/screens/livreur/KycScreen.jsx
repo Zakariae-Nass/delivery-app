@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,13 +36,24 @@ export default function KycScreen({ navigation }) {
   const [submitting,    setSubmitting]    = useState(false);
 
   const pickImage = async (setter) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status, canAskAgain } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Accès à la galerie requis');
+      if (!canAskAgain) {
+        Alert.alert(
+          'Permission refusée',
+          'Accès à la galerie requis. Activez-le dans les paramètres de l\'application.',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Paramètres', onPress: () => Linking.openSettings() },
+          ]
+        );
+      } else {
+        Alert.alert('Permission refusée', 'Accès à la galerie requis.');
+      }
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.8,
     });

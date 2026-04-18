@@ -37,7 +37,7 @@ const CARD_SHADOW = {
   elevation: 16,
 };
 
-const MENU_ITEMS = [
+const LIVREUR_MENU_ITEMS = [
   { key: 'LivreurHome',     label: 'Dashboard',        icon: 'home-outline' },
   { key: 'MesCandidatures', label: 'Mes Candidatures', icon: 'list-outline' },
   { key: 'Wallet',          label: 'Mon Wallet',       icon: 'wallet-outline' },
@@ -49,10 +49,12 @@ export default function DrawerMenu({
   visible,
   onClose,
   navigation,
-  activeScreen = 'LivreurHome',
-  avatar       = null,
-  driverName   = '',
-  driverEmail  = '',
+  activeScreen     = 'LivreurHome',
+  avatar           = null,
+  driverName       = '',
+  driverEmail      = '',
+  menuItems        = LIVREUR_MENU_ITEMS,
+  profileScreenName = 'DriverProfile',
 }) {
   const dispatch = useDispatch();
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -119,7 +121,7 @@ export default function DrawerMenu({
                 <Text style={d.userEmail} numberOfLines={1}>{driverEmail}</Text>
                 <TouchableOpacity
                   style={d.profilePill}
-                  onPress={() => handleNavigate('DriverProfile')}
+                  onPress={() => handleNavigate(profileScreenName)}
                   activeOpacity={0.8}
                 >
                   <Text style={d.profilePillText}>Profil</Text>
@@ -130,7 +132,7 @@ export default function DrawerMenu({
             <View style={d.headerDivider} />
 
             <ScrollView style={d.menuScroll} showsVerticalScrollIndicator={false}>
-              {MENU_ITEMS.map((item, i) => {
+              {menuItems.map((item, i) => {
                 const isActive = activeScreen === item.key;
                 return (
                   <View key={item.key}>
@@ -147,7 +149,7 @@ export default function DrawerMenu({
                       </Text>
                       {isActive && <View style={d.activeBar} />}
                     </TouchableOpacity>
-                    {i < MENU_ITEMS.length - 1 && <View style={d.itemDivider} />}
+                    {i < menuItems.length - 1 && <View style={d.itemDivider} />}
                   </View>
                 );
               })}

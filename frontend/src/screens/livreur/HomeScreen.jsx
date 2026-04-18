@@ -6,13 +6,13 @@ import {
   ScrollView,
   StatusBar,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 
 import apiClient from '../../api/axios.config';
-import { setCommandes } from '../../redux/slices/commandesSlice';
+import { setCommandes, setActiveCommande } from '../../redux/slices/commandesSlice';
 import { setProfile } from '../../redux/slices/profileSlice';
 import DrawerMenu from '../../components/DrawerMenu';
 import { s, WHITE, CORAL, SUCCESS, WARNING } from './styles/livreurHomeStyles';
@@ -25,6 +25,7 @@ export default function LivreurHomeScreen({ navigation }) {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { list: commandes, activeCommande } = useSelector((s) => s.commandes);
+  const isActiveDelivery = activeCommande && ['en_cours_pickup', 'colis_recupere'].includes(activeCommande.status);
   const { profile } = useSelector((s) => s.profile);
 
   const [isOnline, setIsOnline]   = useState(false);
@@ -36,12 +37,14 @@ export default function LivreurHomeScreen({ navigation }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileRes, commandesRes] = await Promise.all([
+      const [profileRes, commandesRes, activeRes] = await Promise.all([
         apiClient.get('/livreurs/me'),
         apiClient.get('/commandes/available'),
+        apiClient.get('/commandes/my-active'),
       ]);
       dispatch(setProfile(profileRes.data));
       dispatch(setCommandes(commandesRes.data));
+      dispatch(setActiveCommande(activeRes.data));
       setIsOnline(profileRes.data.status === 'online');
     } catch (e) {
       console.error('HomeScreen fetch error', e);
@@ -64,6 +67,7 @@ export default function LivreurHomeScreen({ navigation }) {
   };
 
   const handleApply = async (commandeId) => {
+    if (!profile?.isVerified) return;
     setApplyingId(commandeId);
     try {
       await apiClient.post(`/commandes/${commandeId}/apply`);
@@ -77,22 +81,6 @@ export default function LivreurHomeScreen({ navigation }) {
 
   const todayLivrees = commandes.filter((c) => c.status === 'livree').length;
   const note = profile?.averageNote ? Number(profile.averageNote).toFixed(1) : '0.0';
-
-  if (profile && !profile.isVerified) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: WHITE }}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <Ionicons name="shield-outline" size={64} color={WARNING} />
-          <Text style={{ fontSize: 20, fontWeight: '800', color: '#1C1C1E', marginTop: 16, textAlign: 'center' }}>
-            En attente de validation
-          </Text>
-          <Text style={{ fontSize: 14, color: '#8E8EA0', marginTop: 8, textAlign: 'center', lineHeight: 22 }}>
-            Votre compte est en cours de validation. Vous pourrez accepter des commandes une fois approuvé.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <View style={s.root}>
@@ -111,6 +99,36 @@ export default function LivreurHomeScreen({ navigation }) {
         }
       >
         <DriverHeader onMenuOpen={() => setDrawerOpen(true)} navigation={navigation} />
+
+        {profile && !profile.isVerified && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8EE', marginHorizontal: 16, marginTop: 8, borderRadius: 12, padding: 12, gap: 10, borderWidth: 1, borderColor: '#FDDBA1' }}>
+            <Ionicons name="shield-outline" size={20} color={WARNING} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400E' }}>Compte en attente de vérification</Text>
+              <Text style={{ fontSize: 12, color: '#92400E', marginTop: 2 }}>Soumettez vos documents KYC pour postuler aux commandes.</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('KycVerification')}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: WARNING }}>Vérifier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {isActiveDelivery && (
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAFAF1', marginHorizontal: 16, marginTop: 8, borderRadius: 12, padding: 14, gap: 10, borderWidth: 1, borderColor: '#86EFAC' }}
+            onPress={() => navigation.navigate('ActiveOrder')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="bicycle-outline" size={24} color={SUCCESS} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#166534' }}>Livraison en cours</Text>
+              <Text style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>
+                {activeCommande.numero} — {activeCommande.status === 'en_cours_pickup' ? 'En route vers pickup' : 'Colis récupéré'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={SUCCESS} />
+          </TouchableOpacity>
+        )}
 
         <StatusCard
           isOnline={isOnline}

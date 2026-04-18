@@ -30,6 +30,7 @@ import AgencyWalletScreen     from '../screens/agence/AgencyWalletScreen';
 
 // Agency screens
 import OrderTrackingScreen    from '../screens/agence/OrderTrackingScreen';
+import AgencyProfileScreen    from '../screens/agence/AgencyProfileScreen';
 
 // Delivery screens
 import LivreurHomeScreen      from '../screens/livreur/HomeScreen';
@@ -70,6 +71,7 @@ function AgencyStack() {
       <Stack.Screen name="Navigation"       component={NavigationScreen} />
       <Stack.Screen name="OrderTracking"    component={OrderTrackingScreen} />
       <Stack.Screen name="AgencyWallet"     component={AgencyWalletScreen} />
+      <Stack.Screen name="AgencyProfile"    component={AgencyProfileScreen} />
     </Stack.Navigator>
   );
 }

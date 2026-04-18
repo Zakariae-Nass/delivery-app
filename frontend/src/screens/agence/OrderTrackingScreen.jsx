@@ -81,7 +81,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
     <SafeAreaView style={st.root}>
       <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
         <View style={st.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={st.backBtn}>
+          <TouchableOpacity onPress={() => navigation.navigate('AgenceDashboard')} style={st.backBtn}>
             <Ionicons name="arrow-back" size={22} color={DARK} />
           </TouchableOpacity>
           <Text style={st.headerTitle}>{commande.numero}</Text>
@@ -156,15 +156,6 @@ export default function OrderTrackingScreen({ navigation, route }) {
           </View>
         )}
 
-        {commande.deliveryImageUrl && (
-          <View style={st.imageCard}>
-            <Text style={st.imageLabel}>Photo livraison</Text>
-            <Image
-              source={{ uri: `${WS_URL}${commande.deliveryImageUrl}` }}
-              style={st.image}
-            />
-          </View>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

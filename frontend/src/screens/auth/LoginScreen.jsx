@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Animated,
   ScrollView,
   StatusBar,
   Text,
@@ -14,7 +13,44 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import useLogin from '../../hooks/useLogin';
-import { s, WHITE, CORAL, GRAY_LABEL } from './LoginScreen.styles';
+import { s, WHITE, CORAL, GRAY_LABEL, GRAY_DIV } from './LoginScreen.styles';
+
+function FocusableInput({ icon, rightIcon, style, inputStyle, ...inputProps }) {
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  const handleFocus = () => {
+    Animated.timing(borderAnim, { toValue: 1, duration: 150, useNativeDriver: false }).start();
+    inputProps.onFocus?.();
+  };
+  const handleBlur = () => {
+    Animated.timing(borderAnim, { toValue: 0, duration: 150, useNativeDriver: false }).start();
+    inputProps.onBlur?.();
+  };
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [GRAY_DIV, CORAL],
+  });
+  const backgroundColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#F5F5F7', 'rgba(255,107,91,0.04)'],
+  });
+
+  return (
+    <Animated.View style={[s.inputWrap, style, { borderColor, backgroundColor }]}>
+      {icon}
+      <TextInput
+        {...inputProps}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        style={[s.input, inputStyle]}
+        selectionColor={CORAL}
+        underlineColorAndroid="transparent"
+      />
+      {rightIcon}
+    </Animated.View>
+  );
+}
 
 export default function LoginScreen({ navigation }) {
   const { handleLogin, loading, error, handleClearError } = useLogin();
@@ -22,7 +58,6 @@ export default function LoginScreen({ navigation }) {
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [focused,      setFocused]      = useState(null);
   const [fieldErrors,  setFieldErrors]  = useState({});
 
   const validateEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -53,19 +88,15 @@ export default function LoginScreen({ navigation }) {
   const canSubmit = email.trim().length > 0 && password.trim().length > 0 && !loading;
 
   return (
-    <KeyboardAvoidingView
-      style={s.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={WHITE} />
 
       <ScrollView
         contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
       >
-        <SafeAreaView edges={['top']} />
-
         <View style={s.brand}>
           <View style={s.logoWrap}>
             <Ionicons name="car-sport" size={40} color={CORAL} />
@@ -81,21 +112,16 @@ export default function LoginScreen({ navigation }) {
           {/* Email */}
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>Email</Text>
-            <View style={[s.inputWrap, focused === 'email' && s.inputWrapFocused]}>
-              <Ionicons name="mail-outline" size={20} color={GRAY_LABEL} style={s.inputIconImg} />
-              <TextInput
-                style={s.input}
-                placeholder="votre@email.com"
-                placeholderTextColor={GRAY_LABEL}
-                value={email}
-                onChangeText={handleEmailChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                onFocus={() => setFocused('email')}
-                onBlur={() => setFocused(null)}
-              />
-            </View>
+            <FocusableInput
+              icon={<Ionicons name="mail-outline" size={20} color={GRAY_LABEL} style={s.inputIconImg} />}
+              placeholder="votre@email.com"
+              placeholderTextColor={GRAY_LABEL}
+              value={email}
+              onChangeText={handleEmailChange}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             {fieldErrors.email ? (
               <Text style={s.fieldError}>{fieldErrors.email}</Text>
             ) : null}
@@ -104,29 +130,26 @@ export default function LoginScreen({ navigation }) {
           {/* Password */}
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>Mot de passe</Text>
-            <View style={[s.inputWrap, focused === 'password' && s.inputWrapFocused]}>
-              <Ionicons name="lock-closed-outline" size={20} color={GRAY_LABEL} style={s.inputIconImg} />
-              <TextInput
-                style={s.input}
-                placeholder="••••••••"
-                placeholderTextColor={GRAY_LABEL}
-                value={password}
-                onChangeText={handlePasswordChange}
-                secureTextEntry={!showPassword}
-                onFocus={() => setFocused('password')}
-                onBlur={() => setFocused(null)}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(v => !v)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={GRAY_LABEL}
-                />
-              </TouchableOpacity>
-            </View>
+            <FocusableInput
+              icon={<Ionicons name="lock-closed-outline" size={20} color={GRAY_LABEL} style={s.inputIconImg} />}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(v => !v)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={GRAY_LABEL}
+                  />
+                </TouchableOpacity>
+              }
+              placeholder="••••••••"
+              placeholderTextColor={GRAY_LABEL}
+              value={password}
+              onChangeText={handlePasswordChange}
+              secureTextEntry={!showPassword}
+            />
             {fieldErrors.password ? (
               <Text style={s.fieldError}>{fieldErrors.password}</Text>
             ) : null}
@@ -165,9 +188,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={s.footerLink}> S'inscrire</Text>
           </TouchableOpacity>
         </View>
-
-        <SafeAreaView edges={['bottom']} />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

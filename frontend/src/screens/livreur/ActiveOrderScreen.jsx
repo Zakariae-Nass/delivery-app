@@ -39,12 +39,11 @@ export default function ActiveOrderScreen({ navigation }) {
   const mapRef    = useRef(null);
   const posInterval = useRef(null);
 
-  const [livreurPos, setLivreurPos]     = useState(null);
-  const [pickupImage, setPickupImage]   = useState(null);
-  const [deliveryImage, setDeliveryImage] = useState(null);
-  const [otp, setOtp]                   = useState('');
-  const [loading, setLoading]           = useState(false);
-  const [otpError, setOtpError]         = useState('');
+  const [livreurPos, setLivreurPos]   = useState(null);
+  const [pickupImage, setPickupImage] = useState(null);
+  const [otp, setOtp]                 = useState('');
+  const [loading, setLoading]         = useState(false);
+  const [otpError, setOtpError]       = useState('');
 
   const commande = activeCommande;
 
@@ -63,7 +62,6 @@ export default function ActiveOrderScreen({ navigation }) {
     return () => { socket.disconnect(); socketRef.current = null; };
   }, [commande?.id]);
 
-  // GPS position emitter (active order only)
   useEffect(() => {
     if (!commande || !['en_cours_pickup', 'colis_recupere'].includes(commande.status)) return;
 
@@ -103,41 +101,27 @@ export default function ActiveOrderScreen({ navigation }) {
   const isDeliveryPhase = commande.status === 'colis_recupere';
 
   const handlePickupImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorisez l\'accès à la galerie dans les paramètres.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPickupImage(uri);
-    }
-  };
-
-  const handleDeliveryImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setDeliveryImage(uri);
-    }
-  };
-
-  const uploadImage = async (uri, endpoint) => {
-    const formData = new FormData();
-    formData.append('image', { uri, type: 'image/jpeg', name: 'photo.jpg' });
-    const { data } = await apiClient.post(endpoint, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return data;
+    if (!result.canceled) setPickupImage(result.assets[0].uri);
   };
 
   const handleConfirmPickup = async () => {
     if (!pickupImage) return;
     setLoading(true);
     try {
-      await uploadImage(pickupImage, `/commandes/${commande.id}/upload-pickup-image`);
+      const formData = new FormData();
+      formData.append('image', { uri: pickupImage, type: 'image/jpeg', name: 'pickup.jpg' });
+      await apiClient.post(`/commandes/${commande.id}/upload-pickup-image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       await apiClient.patch(`/commandes/${commande.id}/status`, { status: 'colis_recupere' });
       dispatch(updateCommandeStatus({ commandeId: commande.id, status: 'colis_recupere' }));
     } catch (e) {
@@ -152,14 +136,9 @@ export default function ActiveOrderScreen({ navigation }) {
       setOtpError('Le code doit être 4 chiffres');
       return;
     }
-    if (!deliveryImage) {
-      Alert.alert('Erreur', 'Veuillez prendre une photo de preuve de livraison');
-      return;
-    }
     setLoading(true);
     setOtpError('');
     try {
-      await uploadImage(deliveryImage, `/commandes/${commande.id}/upload-delivery-image`);
       await apiClient.post(`/commandes/${commande.id}/confirm-delivery`, { otpCode: otp });
       dispatch(updateCommandeStatus({ commandeId: commande.id, status: 'livree' }));
       Alert.alert('Livraison confirmée !', `Commande ${commande.numero} livrée avec succès`, [
@@ -264,7 +243,7 @@ export default function ActiveOrderScreen({ navigation }) {
               <TouchableOpacity style={st.uploadBtn} onPress={handlePickupImage}>
                 <Ionicons name="camera-outline" size={20} color={CORAL} />
                 <Text style={st.uploadBtnText}>
-                  {pickupImage ? 'Changer la photo' : 'Prendre une photo du colis'}
+                  {pickupImage ? 'Changer la photo' : 'Photo du colis (requis)'}
                 </Text>
               </TouchableOpacity>
 
@@ -291,16 +270,10 @@ export default function ActiveOrderScreen({ navigation }) {
           {/* Phase 2: Delivery */}
           {isDeliveryPhase && (
             <View style={st.section}>
-              {/* History - pickup done */}
+              {/* Pickup done summary */}
               <View style={st.historySection}>
                 <Text style={st.sectionTitle}>Pickup effectué</Text>
                 <Text style={st.addressText}>{commande.pickupAddress}</Text>
-                {commande.pickupImageUrl && (
-                  <Image
-                    source={{ uri: `${WS_URL}${commande.pickupImageUrl}` }}
-                    style={st.previewImg}
-                  />
-                )}
               </View>
 
               <View style={st.divider} />
@@ -321,22 +294,10 @@ export default function ActiveOrderScreen({ navigation }) {
               />
               {otpError ? <Text style={st.fieldError}>{otpError}</Text> : null}
 
-              {/* Delivery image */}
-              <TouchableOpacity style={st.uploadBtn} onPress={handleDeliveryImage}>
-                <Ionicons name="camera-outline" size={20} color={CORAL} />
-                <Text style={st.uploadBtnText}>
-                  {deliveryImage ? 'Changer la photo' : 'Photo preuve de livraison'}
-                </Text>
-              </TouchableOpacity>
-
-              {deliveryImage && (
-                <Image source={{ uri: deliveryImage }} style={st.previewImg} />
-              )}
-
               <TouchableOpacity
-                style={[st.confirmBtn, (otp.length !== 4 || !deliveryImage) && st.confirmBtnDisabled]}
+                style={[st.confirmBtn, otp.length !== 4 && st.confirmBtnDisabled]}
                 onPress={handleConfirmDelivery}
-                disabled={otp.length !== 4 || !deliveryImage || loading}
+                disabled={otp.length !== 4 || loading}
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
@@ -364,38 +325,25 @@ const st = StyleSheet.create({
     backgroundColor: '#fff',
     gap: 12,
   },
-  backBtn:    { padding: 4 },
-  headerTitle:{ fontSize: 16, fontWeight: '800', color: DARK, flex: 1 },
-  statusBadge:{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  infoCard:   { backgroundColor: '#fff', margin: 16, borderRadius: 16, padding: 16 },
-  urgentBadge:{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, alignSelf: 'flex-start', backgroundColor: 'rgba(230,57,70,0.08)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  urgentText: { fontSize: 11, fontWeight: '800', color: '#E63946' },
-  clientName: { fontSize: 17, fontWeight: '800', color: DARK },
-  clientPhone:{ fontSize: 13, color: GRAY, marginTop: 2 },
-  packageType:{ fontSize: 13, color: GRAY, marginTop: 4 },
+  backBtn:     { padding: 4 },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: DARK, flex: 1 },
+  statusBadge: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  statusText:  { fontSize: 12, fontWeight: '700' },
+  infoCard:    { backgroundColor: '#fff', margin: 16, borderRadius: 16, padding: 16 },
+  urgentBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, alignSelf: 'flex-start', backgroundColor: 'rgba(230,57,70,0.08)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  urgentText:  { fontSize: 11, fontWeight: '800', color: '#E63946' },
+  clientName:  { fontSize: 17, fontWeight: '800', color: DARK },
+  clientPhone: { fontSize: 13, color: GRAY, marginTop: 2 },
+  packageType: { fontSize: 13, color: GRAY, marginTop: 4 },
   mapContainer:{ height: 220, marginHorizontal: 16, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
-  map:        { flex: 1 },
-  section:    { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 16, padding: 16, gap: 12 },
+  map:         { flex: 1 },
+  section:     { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 16, padding: 16, gap: 12 },
   historySection: { marginBottom: 8 },
-  divider:    { height: 1, backgroundColor: '#ECECF0', marginVertical: 8 },
+  divider:     { height: 1, backgroundColor: '#ECECF0', marginVertical: 8 },
   sectionTitle:{ fontSize: 13, fontWeight: '700', color: GRAY, textTransform: 'uppercase', letterSpacing: 0.6 },
-  addressText:{ fontSize: 15, color: DARK, fontWeight: '500' },
-  uploadBtn:  {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,107,91,0.08)',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,91,0.2)',
-    borderStyle: 'dashed',
-  },
-  uploadBtnText: { fontSize: 14, color: CORAL, fontWeight: '600' },
-  previewImg: { width: '100%', height: 160, borderRadius: 12, resizeMode: 'cover' },
-  fieldLabel: { fontSize: 12, fontWeight: '700', color: GRAY, textTransform: 'uppercase', letterSpacing: 0.6 },
-  otpInput:   {
+  addressText: { fontSize: 15, color: DARK, fontWeight: '500' },
+  fieldLabel:  { fontSize: 12, fontWeight: '700', color: GRAY, textTransform: 'uppercase', letterSpacing: 0.6 },
+  otpInput:    {
     backgroundColor: LIGHT,
     borderRadius: 12,
     borderWidth: 1.5,
@@ -407,9 +355,9 @@ const st = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 8,
   },
-  otpInputError: { borderColor: '#E63946' },
-  fieldError: { fontSize: 12, color: '#E63946', fontWeight: '500' },
-  confirmBtn: {
+  otpInputError:    { borderColor: '#E63946' },
+  fieldError:       { fontSize: 12, color: '#E63946', fontWeight: '500' },
+  confirmBtn:       {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -420,4 +368,17 @@ const st = StyleSheet.create({
   },
   confirmBtnDisabled: { opacity: 0.4 },
   confirmBtnText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
+  uploadBtn:   {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,107,91,0.08)',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,91,0.2)',
+    borderStyle: 'dashed',
+  },
+  uploadBtnText: { fontSize: 14, color: CORAL, fontWeight: '600' },
+  previewImg:    { width: '100%', height: 160, borderRadius: 12, resizeMode: 'cover' },
 });
