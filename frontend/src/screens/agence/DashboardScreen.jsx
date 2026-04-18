@@ -1,37 +1,83 @@
-import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  RefreshControl,
   ScrollView,
-  TouchableOpacity,
   StatusBar,
-  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { MOCK_COMMANDES_AGENCE, MOCK_STATS_AGENCE } from '../../config/mockData';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+
+import apiClient from '../../api/axios.config';
+import { logout } from '../../redux/slices/authSlice';
+import { setCommandes } from '../../redux/slices/commandesSlice';
+import { authService } from '../../services/auth.service';
+import { notificationsSocket } from '../../services/notifications.socket';
 import StatCard from '../../components/StatCard';
 import CommandeCard from './components/CommandeCard';
 import { styles } from './styles/DashboardScreen.styles';
 import { Colors } from '../../config/theme';
+import { STATUS_CONFIG } from '../../config/constants';
 
 const FILTERS = [
-  { key: 'toutes', label: 'Toutes' },
+  { key: 'toutes',     label: 'Toutes' },
   { key: 'en_attente', label: 'En attente' },
-  { key: 'en_cours', label: 'En cours' },
-  { key: 'livrees', label: 'Livrées' },
+  { key: 'en_cours',   label: 'En cours' },
+  { key: 'livrees',    label: 'Livrées' },
 ];
 
 export default function AgenceDashboardScreen({ navigation }) {
-  const [activeFilter, setActiveFilter] = useState('toutes');
+  const dispatch = useDispatch();
+  const { user } = useSelector((s) => s.auth);
+  const { list: commandes } = useSelector((s) => s.commandes);
+  const { unreadCount } = useSelector((s) => s.notifications);
 
-  const filteredCommandes = MOCK_COMMANDES_AGENCE.filter((c) => {
+  const [activeFilter, setActiveFilter] = useState('toutes');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchCommandes = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/commandes/mine');
+      dispatch(setCommandes(data));
+    } catch (e) {
+      console.error('Failed to fetch commandes', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [dispatch]);
+
+  useEffect(() => { fetchCommandes(); }, [fetchCommandes]);
+
+  const filteredCommandes = commandes.filter((c) => {
     if (activeFilter === 'toutes') return true;
-    if (activeFilter === 'en_cours') return ['acceptee', 'en_route', 'pickup'].includes(c.statut);
-    if (activeFilter === 'en_attente') return c.statut === 'en_attente';
-    if (activeFilter === 'livrees') return c.statut === 'livree';
+    if (activeFilter === 'en_cours') return ['en_cours_pickup', 'colis_recupere'].includes(c.status);
+    if (activeFilter === 'en_attente') return c.status === 'en_attente';
+    if (activeFilter === 'livrees') return c.status === 'livree';
     return true;
   });
 
-  const handleLogout = () => navigation.replace('Login');
+  const stats = {
+    total:     commandes.length,
+    enCours:   commandes.filter(c => ['en_cours_pickup','colis_recupere'].includes(c.status)).length,
+    enAttente: commandes.filter(c => c.status === 'en_attente').length,
+    livrees:   commandes.filter(c => c.status === 'livree').length,
+  };
+
+  const handleLogout = async () => {
+    notificationsSocket.disconnect();
+    await authService.logout();
+    dispatch(logout());
+  };
+
+  const initials = user?.username
+    ? user.username.slice(0, 2).toUpperCase()
+    : 'AG';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -40,56 +86,72 @@ export default function AgenceDashboardScreen({ navigation }) {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCommandes(); }} tintColor={Colors.primary} />}
       >
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <View style={styles.topBar}>
           <View>
-            <Text style={styles.greeting}>Bonjour 👋</Text>
-            <Text style={styles.agenceName}>Express Maroc</Text>
+            <Text style={styles.greeting}>Bonjour</Text>
+            <Text style={styles.agenceName}>{user?.username || 'Agence'}</Text>
           </View>
           <View style={styles.topBarRight}>
-            <TouchableOpacity style={styles.notifBtn}>
-              <Text style={styles.notifIcon}>🔔</Text>
-              <View style={styles.notifBadge} />
+            <TouchableOpacity
+              style={styles.notifBtn}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
+              {unreadCount > 0 && <View style={styles.notifBadge} />}
             </TouchableOpacity>
             <TouchableOpacity style={styles.avatarBtn} onPress={handleLogout}>
-              <Text style={styles.avatarText}>EM</Text>
+              <Text style={styles.avatarText}>{initials}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── Stats Cards ── */}
+        {/* Stats */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.statsScroll}
           contentContainerStyle={styles.statsContent}
         >
-          <StatCard icon="📦" label="Total" value={MOCK_STATS_AGENCE.totalCommandes} color={Colors.info} />
-          <StatCard icon="🚴" label="En cours" value={MOCK_STATS_AGENCE.enCours} color={Colors.primary} />
-          <StatCard icon="⏳" label="En attente" value={MOCK_STATS_AGENCE.enAttente} color={Colors.warning} />
-          <StatCard icon="✅" label="Livrées" value={MOCK_STATS_AGENCE.livrees} color={Colors.success} />
-          <StatCard icon="💰" label="Ce mois (MAD)" value={MOCK_STATS_AGENCE.gainsMois} color={Colors.success} />
+          <StatCard icon="cube-outline"     label="Total"      value={stats.total}     color={Colors.info || '#4361EE'} />
+          <StatCard icon="bicycle-outline"  label="En cours"   value={stats.enCours}   color={Colors.primary} />
+          <StatCard icon="time-outline"     label="En attente" value={stats.enAttente} color={Colors.warning} />
+          <StatCard icon="checkmark-circle-outline" label="Livrées" value={stats.livrees} color={Colors.success} />
         </ScrollView>
 
-        {/* ── Bouton Nouvelle Commande ── */}
-        <TouchableOpacity style={styles.newCommandeBtn} activeOpacity={0.85} onPress={() => navigation.navigate('CreateOrder')}>
-          <Text style={styles.newCommandeIcon}>+</Text>
-          <Text style={styles.newCommandeText}>Nouvelle commande</Text>
-        </TouchableOpacity>
+        {/* Quick actions */}
+        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 8 }}>
+          <TouchableOpacity
+            style={[styles.newCommandeBtn, { flex: 1, marginHorizontal: 0, marginBottom: 0 }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('CreateOrder')}
+          >
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+            <Text style={styles.newCommandeText}>Nouvelle commande</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.newCommandeBtn, { flex: 0, paddingHorizontal: 16, backgroundColor: '#4361EE', marginHorizontal: 0, marginBottom: 0 }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('AgencyWallet')}
+          >
+            <Ionicons name="wallet-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-        {/* ── Section Commandes ── */}
+        {/* Section header */}
         <View style={styles.sectionHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={styles.sectionTitle}>Mes commandes</Text>
             <Text style={styles.sectionCount}>{filteredCommandes.length}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('OrdersList')}>
-            <Text style={styles.voirTout}>Voir toutes →</Text>
+            <Text style={styles.voirTout}>Voir toutes</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Filtres */}
+        {/* Filters */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -109,19 +171,28 @@ export default function AgenceDashboardScreen({ navigation }) {
           ))}
         </ScrollView>
 
-        {/* Liste commandes */}
+        {/* List */}
         <View style={styles.commandesList}>
-          {filteredCommandes.length === 0 ? (
+          {loading ? (
+            <ActivityIndicator color={Colors.primary} size="large" style={{ marginTop: 40 }} />
+          ) : filteredCommandes.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📭</Text>
+              <Ionicons name="cube-outline" size={52} color={Colors.textSecondary} style={{ marginBottom: 12 }} />
               <Text style={styles.emptyText}>Aucune commande pour l'instant</Text>
               <TouchableOpacity onPress={() => navigation.navigate('CreateOrder')}>
-                <Text style={styles.emptyLink}>Créer une commande →</Text>
+                <Text style={styles.emptyLink}>Créer une commande</Text>
               </TouchableOpacity>
             </View>
           ) : (
             filteredCommandes.map((commande) => (
-              <CommandeCard key={commande.id} commande={commande} />
+              <CommandeCard
+                key={commande.id}
+                commande={commande}
+                onPress={() => {
+                  const isActive = ['en_cours_pickup', 'colis_recupere'].includes(commande.status);
+                  navigation.navigate(isActive ? 'OrderTracking' : 'DriverSelection', { commandeId: commande.id });
+                }}
+              />
             ))
           )}
         </View>

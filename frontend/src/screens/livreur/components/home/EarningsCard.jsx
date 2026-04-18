@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text } from 'react-native';
 import { s } from '../../styles/livreurHomeStyles';
@@ -12,7 +13,10 @@ export default function EarningsCard({ stats }) {
       <View style={s.earningsDivider} />
       <View style={s.earningsRight}>
         <Text style={s.earningsLabel}>Total livraisons</Text>
-        <Text style={s.totalValue}>{stats.totalLivraisons} 🏆</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={s.totalValue}>{stats.totalLivraisons}</Text>
+          <Ionicons name="trophy-outline" size={16} color="#FF9F1C" />
+        </View>
       </View>
     </View>
   );

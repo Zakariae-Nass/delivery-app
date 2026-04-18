@@ -108,13 +108,18 @@ export const s = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
-  inputIcon: { fontSize: 16 },
+  inputIconImg: { marginRight: 4 },
   input: {
     flex: 1,
     fontSize: 15,
     color: DARK_TEXT,
   },
-  eyeIcon: { fontSize: 16 },
+  fieldError: {
+    fontSize: 12,
+    color: '#E63946',
+    marginTop: 4,
+    fontWeight: '500',
+  },
 
   // Forgot
   forgotRow: { alignSelf: 'flex-end', marginBottom: 16, marginTop: -4 },
@@ -128,6 +133,8 @@ export const s = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#FFCDD2',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   errorText: {
     fontSize: 13,

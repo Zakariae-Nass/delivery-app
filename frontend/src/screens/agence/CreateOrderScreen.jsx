@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   View,
@@ -8,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import { PACKAGE_TYPES, VEHICLE_TYPES, COLORS } from '../../config/constants';
 import useOrderForm from '../../hooks/useOrderForm';
@@ -15,12 +17,19 @@ import PackageSizeSection from '../../components/PackageSizeSection';
 import UrgentSection from '../../components/UrgentSection';
 import { styles } from './styles/CreateOrderScreen.styles';
 
+const VEHICLE_ICONS = { moto: 'bicycle-outline', voiture: 'car-outline', camion: 'bus-outline' };
+const PACKAGE_ICONS = {
+  general: 'cube-outline', vetements: 'shirt-outline', electronique: 'phone-portrait-outline',
+  alimentation: 'fast-food-outline', medical: 'medkit-outline', documents: 'document-text-outline',
+};
+
 export default function CreateOrderScreen({ navigation }) {
   const form = useOrderForm(navigation);
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
@@ -31,7 +40,7 @@ export default function CreateOrderScreen({ navigation }) {
         {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>←</Text>
+            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Nouvelle commande</Text>
           <View style={{ width: 40 }} />
@@ -103,7 +112,12 @@ export default function CreateOrderScreen({ navigation }) {
                   style={[styles.pkgTypeCard, selected && styles.pkgTypeCardSelected]}
                   onPress={() => form.setPackageType(pt.id)}
                 >
-                  <Text style={styles.pkgTypeIcon}>{pt.icon}</Text>
+                  <Ionicons
+                    name={PACKAGE_ICONS[pt.id] || 'cube-outline'}
+                    size={22}
+                    color={selected ? '#FF6B35' : '#8E8EA0'}
+                    style={{ marginBottom: 4 }}
+                  />
                   <Text style={[styles.pkgTypeLabel, selected && styles.pkgTypeLabelSelected]}>
                     {pt.label}
                   </Text>
@@ -125,7 +139,12 @@ export default function CreateOrderScreen({ navigation }) {
                   style={[styles.vehicleCard, selected && styles.vehicleCardSelected]}
                   onPress={() => form.handleVehicleChange(vt.id)}
                 >
-                  <Text style={styles.vehicleIcon}>{vt.icon}</Text>
+                  <Ionicons
+                    name={VEHICLE_ICONS[vt.id] || 'car-outline'}
+                    size={26}
+                    color={selected ? '#FF6B35' : '#8E8EA0'}
+                    style={{ marginBottom: 4 }}
+                  />
                   <Text style={[styles.vehicleLabel, selected && styles.vehicleLabelSelected]}>
                     {vt.label}
                   </Text>
@@ -189,5 +208,6 @@ export default function CreateOrderScreen({ navigation }) {
         <View style={{ height: 40 }} />
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

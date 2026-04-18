@@ -135,4 +135,44 @@ export class DeliveryService {
       missingFields: completeness.missingFields,
     };
   }
+
+  async getProfile(userId: number) {
+    const delivery = await this.getFullDelivery(userId);
+    const { password: _pw, ...profile } = delivery as Delivery & { password: string };
+    return profile;
+  }
+
+  async updateLivreurProfile(userId: number, dto: { username?: string; phone?: string; vehicleType?: string }) {
+    const delivery = await this.getFullDelivery(userId);
+    if (dto.username !== undefined) delivery.username = dto.username;
+    if (dto.phone !== undefined) delivery.phone = dto.phone;
+    if (dto.vehicleType !== undefined) delivery.vehicleType = dto.vehicleType;
+    const saved = await this.deliveryRepository.save(delivery);
+    const { password: _pw, ...profile } = saved as Delivery & { password: string };
+    return { message: 'Profil mis à jour', profile };
+  }
+
+  async updateStatus(userId: number, status: 'online' | 'offline') {
+    const delivery = await this.getFullDelivery(userId);
+    if (!delivery.isVerified && status === 'online') {
+      throw new BadRequestException('Votre compte n\'est pas encore vérifié');
+    }
+    delivery.status = status;
+    await this.deliveryRepository.save(delivery);
+    return { status };
+  }
+
+  async updatePhoto(userId: number, photoUrl: string) {
+    const delivery = await this.getFullDelivery(userId);
+    delivery.photoUrl = photoUrl;
+    await this.deliveryRepository.save(delivery);
+    return { photoUrl };
+  }
+
+  async updateKyc(userId: number, kycDocumentUrl: string) {
+    const delivery = await this.getFullDelivery(userId);
+    delivery.kycDocumentUrl = kycDocumentUrl;
+    await this.deliveryRepository.save(delivery);
+    return { kycDocumentUrl, kycStatus: 'pending' };
+  }
 }

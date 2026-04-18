@@ -4,11 +4,14 @@ import {
   Get,
   Patch,
   Post,
+  UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import {
   multerDocumentsFileFilter,
   multerDocumentsLimits,
@@ -20,7 +23,16 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { DeliveryService } from './delivery.service';
 import { UpdateDeliveryProfileDto } from './dto/update-delivery-profile.dto';
+import { UpdateLivreurProfileDto } from './dto/update-livreur-profile.dto';
+import { UpdateLivreurStatusDto } from './dto/update-livreur-status.dto';
 import { UploadDocumentsDto } from './dto/upload-documents.dto';
+
+const photoStorage = diskStorage({
+  destination: './uploads/photos',
+  filename: (_req, file, cb) => {
+    cb(null, `${Date.now()}${extname(file.originalname)}`);
+  },
+});
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('delivery')
@@ -70,5 +82,53 @@ export class DeliveryController {
   @Get('dashboard')
   getDashboard(@GetUser() user: { userId: number }) {
     return this.deliveryService.getDashboard(user.userId);
+  }
+}
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('delivery')
+@Controller('livreurs')
+export class LivreursController {
+  constructor(private readonly deliveryService: DeliveryService) {}
+
+  @Get('me')
+  getMe(@GetUser() user: { userId: number }) {
+    return this.deliveryService.getProfile(user.userId);
+  }
+
+  @Patch('me')
+  updateMe(
+    @GetUser() user: { userId: number },
+    @Body() dto: UpdateLivreurProfileDto,
+  ) {
+    return this.deliveryService.updateLivreurProfile(user.userId, dto);
+  }
+
+  @Patch('me/status')
+  updateStatus(
+    @GetUser() user: { userId: number },
+    @Body() dto: UpdateLivreurStatusDto,
+  ) {
+    return this.deliveryService.updateStatus(user.userId, dto.status);
+  }
+
+  @Post('me/photo')
+  @UseInterceptors(FileInterceptor('photo', { storage: photoStorage }))
+  uploadPhoto(
+    @GetUser() user: { userId: number },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const url = `/uploads/photos/${file.filename}`;
+    return this.deliveryService.updatePhoto(user.userId, url);
+  }
+
+  @Post('me/kyc')
+  @UseInterceptors(FileInterceptor('document', { storage: photoStorage }))
+  uploadKyc(
+    @GetUser() user: { userId: number },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const url = `/uploads/photos/${file.filename}`;
+    return this.deliveryService.updateKyc(user.userId, url);
   }
 }

@@ -1,50 +1,56 @@
 import { useState, useEffect, useRef } from 'react';
-import { Animated } from 'react-native';
-import { useApp } from '../context/AppContext';
-import { simulateDriversApplying } from '../utils/simulationData';
+import { Alert, Animated } from 'react-native';
+import { useDispatch } from 'react-redux';
+import apiClient from '../api/axios.config';
+import { addCommande } from '../redux/slices/commandesSlice';
 import { VEHICLE_LIMITS, SIZE_ORDER } from '../config/constants';
-import { validateOrder, buildOrder } from '../utils/orderUtils';
-import { buildDriverNotification } from '../utils/driverUtils';
 import * as locationService from '../services/location.service';
 
-export default function useOrderForm(navigation) {
-  const { addOrder, setOrders, addNotification } = useApp();
+function validateOrder({ depart, destination, clientNom, clientTelephone, prix }) {
+  const errors = {};
+  if (!depart.text || !depart.lat) errors.depart = 'Adresse de départ requise';
+  if (!destination.text || !destination.lat) errors.destination = 'Adresse de destination requise';
+  if (!clientNom || clientNom.trim().length < 3) errors.clientNom = 'Nom minimum 3 caractères';
+  if (!clientTelephone || !/^0[67]\d{8}$/.test(clientTelephone.trim())) {
+    errors.clientTelephone = 'Format invalide (06/07XXXXXXXX)';
+  }
+  if (!prix || parseFloat(prix) <= 0) errors.prix = 'Prix doit être supérieur à 0';
+  return errors;
+}
 
-  // Address state
-  const [depart, setDepart] = useState({ text: '', lat: null, lng: null });
+export default function useOrderForm(navigation) {
+  const dispatch = useDispatch();
+
+  const [depart, setDepart]           = useState({ text: '', lat: null, lng: null });
   const [destination, setDestination] = useState({ text: '', lat: null, lng: null });
   const [departLoading, setDepartLoading] = useState(true);
 
-  // Order fields
-  const [clientNom, setClientNom] = useState('');
+  const [clientNom, setClientNom]             = useState('');
   const [clientTelephone, setClientTelephone] = useState('');
-  const [packageType, setPackageType] = useState('general');
-  const [vehicleType, setVehicleType] = useState('voiture');
-  const [sizeTab, setSizeTab] = useState('default');
-  const [packageSize, setPackageSize] = useState('small');
-  const [customWeight, setCustomWeight] = useState('');
+  const [packageType, setPackageType]         = useState('general');
+  const [vehicleType, setVehicleType]         = useState('voiture');
+  const [sizeTab, setSizeTab]                 = useState('default');
+  const [packageSize, setPackageSize]         = useState('small');
+  const [customWeight, setCustomWeight]       = useState('');
   const [customDimensions, setCustomDimensions] = useState('');
-  const [prix, setPrix] = useState('');
-  const [isUrgent, setIsUrgent] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [prix, setPrix]                       = useState('');
+  const [isUrgent, setIsUrgent]               = useState(false);
+  const [errors, setErrors]                   = useState({});
+  const [submitting, setSubmitting]           = useState(false);
 
-  // Animation refs
-  const urgentAnim = useRef(new Animated.Value(0)).current;
+  const urgentAnim   = useRef(new Animated.Value(0)).current;
   const urgentLoopRef = useRef(null);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => { if (urgentLoopRef.current) urgentLoopRef.current.stop(); };
   }, []);
 
-  // GPS auto-fill on mount
   useEffect(() => {
     locationService.getCurrentAddress()
       .then(addr => addr && setDepart(addr))
       .finally(() => setDepartLoading(false));
   }, []);
 
-  // Vehicle change with auto-reset
   const handleVehicleChange = (newType) => {
     setVehicleType(newType);
     const maxIdx = SIZE_ORDER.indexOf(VEHICLE_LIMITS[newType].maxSizeId);
@@ -55,7 +61,6 @@ export default function useOrderForm(navigation) {
   const isSizeDisabled = (sizeId) =>
     SIZE_ORDER.indexOf(sizeId) > SIZE_ORDER.indexOf(VEHICLE_LIMITS[vehicleType].maxSizeId);
 
-  // Urgent toggle
   const toggleUrgent = () => {
     const next = !isUrgent;
     setIsUrgent(next);
@@ -73,43 +78,46 @@ export default function useOrderForm(navigation) {
     }
   };
 
-  // Validation (delegates to service)
   const validate = () => {
-    const e = validateOrder({ depart, destination, clientNom, clientTelephone, prix, sizeTab, customWeight, vehicleType });
+    const e = validateOrder({ depart, destination, clientNom, clientTelephone, prix });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const isSubmitDisabled = departLoading;
-
-  // Submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    const order = buildOrder({
-      depart, destination, clientNom, clientTelephone,
-      packageType, vehicleType, sizeTab, packageSize,
-      customWeight, customDimensions, prix, isUrgent,
-    });
+    setSubmitting(true);
+    try {
+      const payload = {
+        price: parseFloat(prix),
+        packageType,
+        vehiculeType: vehicleType,
+        isUrgent,
+        clientName: clientNom.trim(),
+        clientPhone: clientTelephone.trim(),
+        pickupAddress: depart.text,
+        deliveryAddress: destination.text,
+        pickupLat: depart.lat,
+        pickupLng: depart.lng,
+        deliveryLat: destination.lat,
+        deliveryLng: destination.lng,
+        weight: customWeight ? parseFloat(customWeight) : null,
+        dimension: customDimensions || null,
+      };
 
-    addOrder(order);
-    simulateDriversApplying((driver) => {
-      setOrders(prev =>
-        prev.map(o =>
-          o.id === order.id
-            ? { ...o, applicants: [...(o.applicants || []), driver] }
-            : o
-        )
-      );
-      addNotification(buildDriverNotification({
-        orderId: order.id,
-        type: 'driver_applied',
-        driver,
-      }));
-    });
-    navigation.navigate('OrdersList');
+      const { data } = await apiClient.post('/commandes', payload);
+      dispatch(addCommande(data));
+      Alert.alert('Commande créée', `Commande ${data.numero} créée avec succès`, [
+        { text: 'OK', onPress: () => navigation.navigate('OrdersList') },
+      ]);
+    } catch (e) {
+      const msg = e?.response?.data?.message;
+      Alert.alert('Erreur', Array.isArray(msg) ? msg.join('\n') : (msg || 'Une erreur est survenue'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Derived values
   const urgentScale = urgentAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
   const vehicleLimit = VEHICLE_LIMITS[vehicleType];
   const customWtNum = parseFloat(customWeight);
@@ -118,11 +126,9 @@ export default function useOrderForm(navigation) {
     !isNaN(customWtNum) && customWtNum > vehicleLimit.maxWeightKg;
 
   return {
-    // Address
     depart, setDepart,
     destination, setDestination,
     departLoading,
-    // Fields
     clientNom, setClientNom,
     clientTelephone, setClientTelephone,
     packageType, setPackageType,
@@ -134,13 +140,12 @@ export default function useOrderForm(navigation) {
     prix, setPrix,
     isUrgent, toggleUrgent,
     errors,
-    // Derived
     urgentScale,
     vehicleLimit,
     customWeightExceeds,
-    isSubmitDisabled,
+    isSubmitDisabled: departLoading || submitting,
+    submitting,
     isSizeDisabled,
-    // Actions
     handleSubmit,
   };
 }
